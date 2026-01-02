@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Ionic Core CSS */
+@import "@ionic/react/css/core.css";
+@import "@ionic/react/css/normalize.css";
+@import "@ionic/react/css/structure.css";
+@import "@ionic/react/css/typography.css";
+@import "@ionic/react/css/padding.css";
+@import "@ionic/react/css/float-elements.css";
+@import "@ionic/react/css/text-alignment.css";
+@import "@ionic/react/css/text-transformation.css";
+@import "@ionic/react/css/flex-utils.css";
+@import "@ionic/react/css/display.css";
+
+/* Leaflet CSS */
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+

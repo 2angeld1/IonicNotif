@@ -1,0 +1,55 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Node modules
+node_modules/
+
+# Archivos de configuración sensibles
+.env
+.env.local
+.env.production
+
+# Archivos temporales
+*.tmp
+*.temp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Modelos ML
+app/ml_models/
+*.joblib
+*.pkl
