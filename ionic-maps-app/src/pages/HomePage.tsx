@@ -47,6 +47,7 @@ const HomePage: React.FC = () => {
   const [incidentLocation, setIncidentLocation] = useState<LatLng | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [apiAvailable, setApiAvailable] = useState(false);
+  const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   
   // Estado del modelo ML
   const [modelStatus, setModelStatus] = useState<{
@@ -80,6 +81,38 @@ const HomePage: React.FC = () => {
     };
     
     initializeData();
+  }, []);
+
+  // Rastreo de ubicación del usuario en tiempo real
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setToast({ show: true, message: 'Geolocalización no soportada en este navegador' });
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserLocation(coords);
+
+        // Opcional: Si es la primera vez que obtenemos ubicación y no hay start, usarla
+        // setStartLocation(prev => !prev.coords ? { coords, name: 'Mi ubicación' } : prev);
+      },
+      (error) => {
+        console.error('Error de ubicación:', error);
+        // No mostrar error constante, tal vez solo log
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   // Recargar incidencias
@@ -326,6 +359,7 @@ const HomePage: React.FC = () => {
               end={endLocation.coords}
               route={route}
               incidents={incidents}
+              userLocation={userLocation}
               onMapClick={handleMapClick}
               onIncidentClick={handleIncidentClick}
             />

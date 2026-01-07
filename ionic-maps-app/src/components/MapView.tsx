@@ -38,6 +38,43 @@ const createIcon = (color: string) => {
 const startIcon = createIcon('#22c55e'); // Verde
 const endIcon = createIcon('#ef4444'); // Rojo
 
+// Icono para la ubicación del usuario (punto azul con pulsación)
+const userLocationIcon = L.divIcon({
+  className: 'user-location-marker',
+  html: `
+    <div style="position: relative; width: 24px; height: 24px;">
+      <div style="
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(59, 130, 246, 0.5);
+        border-radius: 50%;
+        animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+      "></div>
+      <div style="
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 12px;
+        height: 12px;
+        background-color: #2563eb;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+      "></div>
+    </div>
+    <style>
+      @keyframes ping {
+        0% { transform: scale(1); opacity: 1; }
+        75%, 100% { transform: scale(2.5); opacity: 0; }
+      }
+    </style>
+  `,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
+
 // Íconos para incidencias
 const incidentIconConfig: Record<string, { color: string; emoji: string }> = {
   accident: { color: '#dc2626', emoji: '🚗' },
@@ -136,8 +173,10 @@ interface MapViewProps {
   end: LatLng | null;
   route: RouteInfo | null;
   incidents?: Incident[];
+  userLocation?: LatLng | null; // Nueva prop
   onMapClick?: (location: LatLng) => void;
   onIncidentClick?: (incident: Incident) => void;
+  onRecenterUser?: () => void; // Callboack para recentrar
 }
 
 const MapView: React.FC<MapViewProps> = ({ 
@@ -145,8 +184,10 @@ const MapView: React.FC<MapViewProps> = ({
   end, 
   route, 
   incidents = [],
+  userLocation,
   onMapClick,
-  onIncidentClick 
+  onIncidentClick,
+  onRecenterUser
 }) => {
   // Forzar redimensionamiento cuando el componente se monta
   useEffect(() => {
@@ -246,6 +287,35 @@ const MapView: React.FC<MapViewProps> = ({
           />
         );
       })}
+
+      {/* Marcador de ubicación del usuario */}
+      {userLocation && (
+        <Marker
+          position={[userLocation.lat, userLocation.lng]}
+          icon={userLocationIcon}
+          zIndexOffset={1000} // Siempre encima
+        />
+      )}
+
+      {/* Botón flotante para recentrar en usuario */}
+      {userLocation && (
+        <div style={{ position: 'absolute', bottom: '20px', right: '20px', zIndex: 1000 }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Evitar click en mapa
+              mapRef.current?.setView([userLocation.lat, userLocation.lng], 15);
+              onRecenterUser?.();
+            }}
+            className="bg-white p-3 rounded-full shadow-lg border border-gray-200 text-blue-600 hover:bg-gray-50 transition-colors"
+            title="Mi Ubicación"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+      )}
     </MapContainer>
   );
 };
