@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     """Gestionar ciclo de vida de la aplicación"""
     # Startup
     await connect_to_mongo()
-    MLService.load_model()
+    await MLService.load_model()
     print("🚀 API iniciada correctamente")
     
     yield

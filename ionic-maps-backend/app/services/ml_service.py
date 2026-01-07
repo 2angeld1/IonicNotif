@@ -1,9 +1,11 @@
 import os
+import io
 import joblib
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from typing import Optional, List, Tuple
+from app.database import get_database
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import LabelEncoder
 from app.models.schemas import (
@@ -60,16 +62,33 @@ class MLService:
     }
     
     @classmethod
-    def load_model(cls):
-        """Cargar modelo guardado si existe"""
+    async def load_model(cls):
+        """Cargar modelo guardado desde MongoDB"""
         try:
-            if os.path.exists(MODEL_PATH):
-                cls.model = joblib.load(MODEL_PATH)
-                cls.weather_encoder = joblib.load(ENCODERS_PATH)
+            db = get_database()
+            model_doc = await db.models.find_one({"name": "route_predictor"})
+            
+            if model_doc:
+                # Cargar modelo desde binario
+                model_buffer = io.BytesIO(model_doc["model"])
+                cls.model = joblib.load(model_buffer)
+                
+                # Cargar encoders si existen
+                if "encoders" in model_doc and model_doc["encoders"]:
+                    encoder_buffer = io.BytesIO(model_doc["encoders"])
+                    cls.weather_encoder = joblib.load(encoder_buffer)
+                
                 cls.is_trained = True
-                print("✅ Modelo ML cargado correctamente")
+                print("✅ Modelo ML cargado desde MongoDB correctamente")
             else:
-                print("⚠️ No hay modelo entrenado. Usando heurísticas.")
+                # Fallback: intentar cargar archivo local (para desarrollo)
+                if os.path.exists(MODEL_PATH):
+                    cls.model = joblib.load(MODEL_PATH)
+                    cls.weather_encoder = joblib.load(ENCODERS_PATH)
+                    cls.is_trained = True
+                    print("✅ Modelo ML cargado desde archivo local")
+                else:
+                    print("⚠️ No hay modelo entrenado en DB ni local. Usando heurísticas.")
         except Exception as e:
             print(f"❌ Error cargando modelo: {e}")
     
@@ -121,7 +140,28 @@ class MLService:
             cls.model.fit(X, y)
             cls.is_trained = True
             
-            # Guardar modelo
+            # Guardar en MongoDB para persistencia en la nube
+            db = get_database()
+            model_buffer = io.BytesIO()
+            joblib.dump(cls.model, model_buffer)
+            
+            encoder_buffer = io.BytesIO()
+            if cls.weather_encoder:
+                joblib.dump(cls.weather_encoder, encoder_buffer)
+            
+            await db.models.update_one(
+                {"name": "route_predictor"},
+                {
+                    "$set": {
+                        "model": model_buffer.getvalue(),
+                        "encoders": encoder_buffer.getvalue() if cls.weather_encoder else None,
+                        "updated_at": datetime.now()
+                    }
+                },
+                upsert=True
+            )
+            
+            # Guardar copia local por si acaso
             os.makedirs(MODEL_DIR, exist_ok=True)
             joblib.dump(cls.model, MODEL_PATH)
             if cls.weather_encoder:
