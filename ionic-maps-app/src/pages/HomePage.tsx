@@ -98,8 +98,15 @@ const HomePage: React.FC = () => {
         };
         setUserLocation(coords);
 
-        // Opcional: Si es la primera vez que obtenemos ubicación y no hay start, usarla
-        // setStartLocation(prev => !prev.coords ? { coords, name: 'Mi ubicación' } : prev);
+        setUserLocation(coords);
+
+        // Si es la primera vez y no hay ubicación de inicio, usar la actual
+        setStartLocation(prev => {
+          if (!prev.coords) {
+            return { coords, name: 'Mi ubicación' };
+          }
+          return prev;
+        });
       },
       (error) => {
         console.error('Error de ubicación:', error);
@@ -362,6 +369,12 @@ const HomePage: React.FC = () => {
               userLocation={userLocation}
               onMapClick={handleMapClick}
               onIncidentClick={handleIncidentClick}
+              onRecenterUser={() => {
+                if (userLocation) {
+                  // Opcional: Centrar el mapa manualmente si fuera necesario aquí
+                  // MapView ya lo maneja internamente con el botón
+                }
+              }}
             />
           </div>
 
