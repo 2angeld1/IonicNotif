@@ -25,4 +25,11 @@ export default defineConfig({
       },
     },
   },
+  css: {
+    lightningcss: {
+      targets: {
+        chrome: 120, // Targets modern browsers that support :host-context or handle it gracefully
+      }
+    }
+  },
 })
