@@ -6,6 +6,8 @@ import RoutePanel from '../components/RoutePanel';
 import IncidentModal from '../components/IncidentModal';
 import WeatherBadge from '../components/WeatherBadge';
 import IncidentCard from '../components/IncidentCard';
+import NavigationPanel from '../components/NavigationPanel';
+import FavoriteModal from '../components/FavoriteModal';
 import { getRoute } from '../services/geocodingService';
 import { 
   getIncidents, 
@@ -16,11 +18,13 @@ import {
   saveTrip,
   trainModel,
   getModelStatus,
+  getFavorites,
+  addFavorite,
   type Incident,
   type WeatherInfo,
   type TripData
 } from '../services/apiService';
-import type { LatLng, RouteInfo } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, FavoriteType } from '../types';
 
 const HomePage: React.FC = () => {
   const [startLocation, setStartLocation] = useState<{
@@ -56,6 +60,14 @@ const HomePage: React.FC = () => {
     is_trained: boolean;
   }>({ trips_count: 0, ready_for_training: false, is_trained: false });
 
+  const [favorites, setFavorites] = useState<FavoritePlace[]>([]);
+  const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
+  const [favoriteLocation, setFavoriteLocation] = useState<LatLng | null>(null);
+
+  // Estados de UI
+  const [isPanelExpanded, setIsPanelExpanded] = useState(true);
+  const [isRouteMode, setIsRouteMode] = useState(false);
+
   // Ciudad de Panamá por defecto
   const defaultCenter: LatLng = { lat: 8.9824, lng: -79.5199 };
 
@@ -77,6 +89,10 @@ const HomePage: React.FC = () => {
         // Cargar estado del modelo
         const status = await getModelStatus();
         setModelStatus(status);
+
+        // Cargar lugares favoritos
+        const favoritesData = await getFavorites();
+        setFavorites(favoritesData);
       }
     };
     
@@ -223,6 +239,9 @@ const HomePage: React.FC = () => {
             message: `${startName} - ${endName} | ${dist} | ${time}`,
           });
         }
+
+        // Colapsar panel automáticamente al encontrar ruta
+        setIsPanelExpanded(false);
       } else {
         setToast({
           show: true,
@@ -250,17 +269,44 @@ const HomePage: React.FC = () => {
     setStartLocation({ coords: null, name: '' });
     setEndLocation({ coords: null, name: '' });
     setRoute(null);
+    setIsRouteMode(false);
+    setIsPanelExpanded(true);
   }, []);
 
   // Manejar click en el mapa para crear incidencia
   const handleMapClick = useCallback((location: LatLng) => {
     if (!apiAvailable) {
-      setToast({ show: true, message: 'Backend no disponible para crear incidencias' });
+      setToast({ show: true, message: 'Backend no disponible' });
       return;
     }
-    setIncidentLocation(location);
-    setIsIncidentModalOpen(true);
+    setFavoriteLocation(location);
+    setIsFavoriteModalOpen(true);
   }, [apiAvailable]);
+
+  // Manejar creación de favorito
+  const handleFavoriteCreated = async (name: string, type: FavoriteType) => {
+    if (!favoriteLocation) return;
+
+    const newFav = await addFavorite({
+      name,
+      location: favoriteLocation,
+      type
+    });
+
+    if (newFav) {
+      setFavorites(prev => [...prev, newFav]);
+      setToast({ show: true, message: `⭐ ${name} guardado en tus lugares` });
+    } else {
+      setToast({ show: true, message: 'Error al guardar lugar' });
+    }
+  };
+
+  // Manejar click en favorito (en el mapa)
+  const handleFavoriteClick = useCallback((fav: FavoritePlace) => {
+    setEndLocation({ coords: fav.location, name: fav.name });
+    setIsPanelExpanded(true);
+    setToast({ show: true, message: `Destino: ${fav.name}` });
+  }, []);
 
   // Manejar click en incidencia
   const handleIncidentClick = useCallback((incident: Incident) => {
@@ -301,6 +347,14 @@ const HomePage: React.FC = () => {
     <IonPage>
       <IonContent className="ion-no-padding" fullscreen>
         <div className="relative w-full h-full">
+          {/* Panel de Navegación Paso a Paso (Modo Ruta) */}
+          {isRouteMode && route?.steps && route.steps.length > 0 && (
+            <NavigationPanel
+              steps={route.steps}
+              onClose={() => setIsRouteMode(false)}
+            />
+          )}
+
           {/* Panel de búsqueda de rutas */}
           <RoutePanel
             startLocation={startLocation}
@@ -314,17 +368,25 @@ const HomePage: React.FC = () => {
             onClear={handleClear}
             onSaveTrip={handleSaveTrip}
             modelStatus={modelStatus}
+            isExpanded={isPanelExpanded}
+            onToggleExpand={() => setIsPanelExpanded(!isPanelExpanded)}
+            isRouteMode={isRouteMode}
+            onToggleRouteMode={() => {
+              setIsRouteMode(!isRouteMode);
+              if (!isRouteMode) setIsPanelExpanded(false);
+            }}
+            favorites={favorites}
           />
 
-          {/* Badge de clima */}
-          {weather && (
+          {/* Badge de clima (Ocultar en modo ruta) */}
+          {weather && !isRouteMode && (
             <div className="absolute top-2 right-2 z-[1000]">
               <WeatherBadge weather={weather} compact />
             </div>
           )}
 
-          {/* Indicador de incidencias en ruta */}
-          {incidents.length > 0 && (
+          {/* Indicador de incidencias en ruta (Ocultar en modo ruta) */}
+          {incidents.length > 0 && !isRouteMode && (
             <div className="absolute bottom-24 left-2 z-[1000] max-w-[200px]">
               <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-2">
                 <div className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
@@ -366,9 +428,12 @@ const HomePage: React.FC = () => {
               end={endLocation.coords}
               route={route}
               incidents={incidents}
+              favorites={favorites}
               userLocation={userLocation}
+              isRouteMode={isRouteMode}
               onMapClick={handleMapClick}
               onIncidentClick={handleIncidentClick}
+              onFavoriteClick={handleFavoriteClick}
               onRecenterUser={() => {
                 if (userLocation) {
                   // Opcional: Centrar el mapa manualmente si fuera necesario aquí
@@ -378,8 +443,8 @@ const HomePage: React.FC = () => {
             />
           </div>
 
-          {/* FAB para crear incidencia */}
-          {apiAvailable && (
+          {/* FAB para crear incidencia (Ocultar en modo ruta) */}
+          {apiAvailable && !isRouteMode && (
             <IonFab slot="fixed" vertical="bottom" horizontal="end">
               <IonFabButton
                 color="danger"
@@ -393,7 +458,19 @@ const HomePage: React.FC = () => {
               </IonFabButton>
             </IonFab>
           )}
+
         </div>
+
+        {/* Modal de favoritos */}
+        <FavoriteModal
+          isOpen={isFavoriteModalOpen}
+          location={favoriteLocation}
+          onClose={() => {
+            setIsFavoriteModalOpen(false);
+            setFavoriteLocation(null);
+          }}
+          onFavoriteCreated={handleFavoriteCreated}
+        />
 
         {/* Modal de incidencia */}
         <IncidentModal

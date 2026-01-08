@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import type { LatLng, RouteInfo } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace } from '../types';
 import type { Incident } from '../services/apiService';
 
 // Íconos personalizados para los marcadores
@@ -38,8 +38,8 @@ const createIcon = (color: string) => {
 const startIcon = createIcon('#22c55e'); // Verde
 const endIcon = createIcon('#ef4444'); // Rojo
 
-// Icono para la ubicación del usuario (punto azul con pulsación)
-const userLocationIcon = L.divIcon({
+// Icono para la ubicación del usuario normal (punto azul)
+const defaultUserIcon = L.divIcon({
   className: 'user-location-marker',
   html: `
     <div style="position: relative; width: 24px; height: 24px;">
@@ -73,6 +73,27 @@ const userLocationIcon = L.divIcon({
   `,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
+});
+
+// Icono de "Coche/Navegación" para Modo Ruta
+const navIcon = L.divIcon({
+  className: 'nav-marker',
+  html: `
+    <div style="
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+    ">
+      <svg viewBox="0 0 24 24" fill="#3b82f6" style="width: 100%; height: 100%; transform: rotate(-45deg);">
+        <path d="M12 2L4.5 20.29C4.21 21 4.95 21.74 5.66 21.45L12 19.03L18.34 21.45C19.05 21.74 19.79 21 19.5 20.29L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  `,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
 });
 
 // Íconos para incidencias
@@ -113,17 +134,51 @@ const createIncidentIcon = (type: string) => {
   });
 };
 
+// Íconos para lugares favoritos
+const favoriteIconConfig: Record<string, { color: string; emoji: string }> = {
+  home: { color: '#8b5cf6', emoji: '🏠' },
+  work: { color: '#f59e0b', emoji: '🏢' },
+  favorite: { color: '#ec4899', emoji: '⭐' },
+  other: { color: '#6b7280', emoji: '📍' },
+};
+
+const createFavoriteIcon = (type: string) => {
+  const config = favoriteIconConfig[type] || favoriteIconConfig.other;
+  return L.divIcon({
+    className: 'favorite-marker',
+    html: `
+      <div style="
+        background-color: ${config.color};
+        width: 32px;
+        height: 32px;
+        border-radius: 12px;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      ">
+        ${config.emoji}
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
+
 // Componente para centrar el mapa cuando cambian los puntos
 const MapController: React.FC<{
   start: LatLng | null;
   end: LatLng | null;
   route: RouteInfo | null;
-}> = ({ start, end, route }) => {
+  userLocation?: LatLng | null;
+  isRouteMode?: boolean;
+}> = ({ start, end, route, userLocation, isRouteMode }) => {
   const map = useMap();
 
   useEffect(() => {
     // Forzar redimensionamiento del mapa después de un breve delay
-    // para asegurar que el contenedor tenga el tamaño correcto
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 100);
@@ -132,7 +187,13 @@ const MapController: React.FC<{
   }, [map]);
 
   useEffect(() => {
-    if (route && route.coordinates.length > 1) {
+    if (isRouteMode && userLocation) {
+      // En modo ruta, enfocamos al usuario con un zoom más cerrado
+      map.setView([userLocation.lat, userLocation.lng], 17, {
+        animate: true,
+        duration: 1
+      });
+    } else if (route && route.coordinates.length > 1) {
       // Ajustar vista a la ruta completa
       const bounds = L.latLngBounds(
         route.coordinates.map(([lng, lat]) => [lat, lng] as [number, number])
@@ -149,7 +210,7 @@ const MapController: React.FC<{
     } else if (end) {
       map.setView([end.lat, end.lng], 14);
     }
-  }, [start, end, route, map]);
+  }, [start, end, route, map, isRouteMode, userLocation]);
 
   return null;
 };
@@ -173,10 +234,13 @@ interface MapViewProps {
   end: LatLng | null;
   route: RouteInfo | null;
   incidents?: Incident[];
-  userLocation?: LatLng | null; // Nueva prop
+  favorites?: FavoritePlace[];
+  userLocation?: LatLng | null;
+  isRouteMode?: boolean; // Nueva prop
   onMapClick?: (location: LatLng) => void;
   onIncidentClick?: (incident: Incident) => void;
-  onRecenterUser?: () => void; // Callboack para recentrar
+  onFavoriteClick?: (favorite: FavoritePlace) => void;
+  onRecenterUser?: () => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({ 
@@ -184,9 +248,12 @@ const MapView: React.FC<MapViewProps> = ({
   end, 
   route, 
   incidents = [],
+  favorites = [],
   userLocation,
+  isRouteMode,
   onMapClick,
   onIncidentClick,
+  onFavoriteClick,
   onRecenterUser
 }) => {
   // Forzar redimensionamiento cuando el componente se monta
@@ -223,100 +290,138 @@ const MapView: React.FC<MapViewProps> = ({
     : [];
 
   return (
-    <MapContainer
-      center={defaultCenter}
-      zoom={13}
-      className="w-full h-full"
-      ref={mapRef}
-      zoomControl={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      
-      <MapController start={start} end={end} route={route} />
-      
-      {/* Handler para clicks en el mapa */}
-      <MapClickHandler onMapClick={onMapClick} />
-      
-      {start && (
-        <Marker position={[start.lat, start.lng]} icon={startIcon} />
-      )}
-      
-      {end && (
-        <Marker position={[end.lat, end.lng]} icon={endIcon} />
-      )}
-      
-      {routePositions.length > 1 && (
-        <>
-          {/* Sombra de la ruta */}
-          <Polyline
-            positions={routePositions}
-            pathOptions={{
-              color: '#1e40af',
-              weight: 8,
-              opacity: 0.3,
-            }}
-          />
-          {/* Ruta principal */}
-          <Polyline
-            positions={routePositions}
-            pathOptions={{
-              color: '#3b82f6',
-              weight: 5,
-              opacity: 1,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }}
-          />
-        </>
-      )}
-      
-      {/* Marcadores de incidencias */}
-      {incidents.map((incident, idx) => {
-        const key = incident.id || `${incident.location.lat}-${incident.location.lng}-${idx}`;
-        return (
-          <Marker
-            key={key}
-            position={[incident.location.lat, incident.location.lng]}
-            icon={createIncidentIcon(incident.type)}
-            eventHandlers={{
-              click: () => onIncidentClick?.(incident),
-            }}
-          />
-        );
-      })}
-
-      {/* Marcador de ubicación del usuario */}
-      {userLocation && (
-        <Marker
-          position={[userLocation.lat, userLocation.lng]}
-          icon={userLocationIcon}
-          zIndexOffset={1000} // Siempre encima
+    <div className={`w-full h-full relative transition-all duration-700 ease-in-out ${isRouteMode ? 'perspective-active' : ''}`}>
+      <MapContainer
+        center={defaultCenter}
+        zoom={13}
+        className="w-full h-full z-0 transition-transform duration-700 ease-in-out"
+        ref={mapRef}
+        zoomControl={!isRouteMode}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url={isRouteMode
+            ? "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+            : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
         />
-      )}
 
-      {/* Botón flotante para recentrar en usuario */}
-      {userLocation && (
-        <div style={{ position: 'absolute', bottom: '20px', right: '20px', zIndex: 1000 }}>
+        <MapController
+          start={start}
+          end={end}
+          route={route}
+          userLocation={userLocation}
+          isRouteMode={isRouteMode}
+        />
+
+        {/* Handler para clicks en el mapa */}
+        <MapClickHandler onMapClick={onMapClick} />
+
+        {start && !favorites.some(f => f.location.lat === start.lat && f.location.lng === start.lng) && (
+          <Marker position={[start.lat, start.lng]} icon={startIcon} />
+        )}
+
+        {end && !favorites.some(f => f.location.lat === end.lat && f.location.lng === end.lng) && (
+          <Marker position={[end.lat, end.lng]} icon={endIcon} />
+        )}
+
+        {routePositions.length > 1 && (
+          <>
+            {/* Sombra de la ruta */}
+            <Polyline
+              positions={routePositions}
+              pathOptions={{
+                color: '#1e40af',
+                weight: 8,
+                opacity: 0.3,
+              }}
+            />
+            {/* Ruta principal */}
+            <Polyline
+              positions={routePositions}
+              pathOptions={{
+                color: '#3b82f6',
+                weight: 5,
+                opacity: 1,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          </>
+        )}
+
+        {/* Marcadores de incidencias */}
+        {incidents.map((incident, idx) => {
+          const key = incident.id || `${incident.location.lat}-${incident.location.lng}-${idx}`;
+          return (
+            <Marker
+              key={key}
+              position={[incident.location.lat, incident.location.lng]}
+              icon={createIncidentIcon(incident.type)}
+              eventHandlers={{
+                click: () => onIncidentClick?.(incident),
+              }}
+            />
+          );
+        })}
+
+        {/* Marcadores de lugares favoritos */}
+        {favorites?.map((fav) => (
+          <Marker
+            key={fav.id}
+            position={[fav.location.lat, fav.location.lng]}
+            icon={createFavoriteIcon(fav.type)}
+            eventHandlers={{
+              click: () => onFavoriteClick?.(fav),
+            }}
+          />
+        ))}
+
+        {/* Marcador de ubicación del usuario */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={isRouteMode ? navIcon : defaultUserIcon}
+            zIndexOffset={1000} // Siempre encima
+          />
+        )}
+      </MapContainer>
+
+      {/* Botón flotante para recentrar en usuario (Estilo unificado con el de alertas) */}
+      {userLocation && !isRouteMode && (
+        <div style={{ position: 'absolute', bottom: '82px', right: '10px', zIndex: 1000 }}>
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Evitar click en mapa
+              e.stopPropagation();
               mapRef.current?.setView([userLocation.lat, userLocation.lng], 15);
               onRecenterUser?.();
             }}
-            className="bg-white p-3 rounded-full shadow-lg border border-gray-200 text-blue-600 hover:bg-gray-50 transition-colors"
+            style={{ borderRadius: '50%' }}
+            className="w-14 h-14 bg-white shadow-lg flex items-center justify-center text-blue-600 hover:bg-gray-50 transition-all active:scale-95 border border-gray-200"
             title="Mi Ubicación"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
             </svg>
           </button>
         </div>
       )}
-    </MapContainer>
+
+      <style>{`
+        .perspective-active {
+          perspective: 1000px;
+          overflow: hidden;
+          background-color: #e5e7eb;
+        }
+        .perspective-active .leaflet-container {
+          transform: rotateX(25deg) scale(2.0); /* Menor rotación, mayor escala */
+          transform-origin: center 50%; /* Pivot central */
+          height: 100% !important; 
+        }
+        .perspective-active .leaflet-marker-icon {
+          filter: drop-shadow(0 10px 10px rgba(0,0,0,0.3));
+        }
+      `}</style>
+    </div>
   );
 };
 

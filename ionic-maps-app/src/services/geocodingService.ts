@@ -16,10 +16,13 @@ export const searchLocations = async (query: string): Promise<LocationSuggestion
       params: {
         q: query,
         format: 'json',
-        limit: 8,
+        limit: 10,
         addressdetails: 1,
         dedupe: 1,
         'accept-language': 'es',
+        countrycodes: 'pa', // Priorizar Panamá
+        viewbox: '-83.05,9.65,-77.16,7.21', // Bounding box de Panamá
+        bounded: 0, // 0 = Priorizar pero no limitar estrictamente
       },
       headers: {
         'User-Agent': 'IonicMapsApp/1.0',
@@ -64,10 +67,19 @@ export const getRoute = async (
     // OSRM devuelve coordenadas en formato [lng, lat]
     const coordinates_route = route.geometry.coordinates;
 
+    // Extraer pasos de navegación si existen
+    const steps = route.legs?.[0]?.steps?.map((step: any) => ({
+      instruction: step.maneuver?.instruction || '',
+      distance: step.distance,
+      duration: step.duration,
+      name: step.name || ''
+    }));
+
     return {
       distance,
       duration,
       coordinates: coordinates_route,
+      steps
     };
   } catch (error) {
     console.error('Error obteniendo ruta:', error);

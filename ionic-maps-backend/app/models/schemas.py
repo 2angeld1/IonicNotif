@@ -149,3 +149,30 @@ class PredictionResult(BaseModel):
     adjustment_factor: float
     confidence: float
     factors_applied: dict
+
+
+# ============== LUGARES FAVORITOS ==============
+class FavoriteType(str, Enum):
+    HOME = "home"
+    WORK = "work"
+    FAVORITE = "favorite"
+    OTHER = "other"
+
+
+class FavoritePlaceCreate(BaseModel):
+    name: str
+    location: LatLng
+    type: FavoriteType = FavoriteType.FAVORITE
+    address: Optional[str] = None
+
+
+class FavoritePlace(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    location: LatLng
+    type: FavoriteType
+    address: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        populate_by_name = True

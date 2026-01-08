@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { LatLng, RouteInfo } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, FavoriteType } from '../types';
 
 // URL del backend FastAPI
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -10,6 +10,61 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+
+
+// ============== LUGARES FAVORITOS ==============
+export const getFavorites = async (): Promise<FavoritePlace[]> => {
+  try {
+    const response = await api.get('/favorites/');
+    const raws = response.data || [];
+    return raws.map((raw: any) => {
+      const rawId = raw.id ?? raw._id;
+      let id = '';
+      if (rawId) {
+        id = typeof rawId === 'string' ? rawId : rawId.$oid || String(rawId);
+      }
+      return {
+        ...raw,
+        id,
+      } as FavoritePlace;
+    });
+  } catch (error) {
+    console.error('Error obteniendo favoritos:', error);
+    return [];
+  }
+};
+
+export const addFavorite = async (favorite: {
+  name: string;
+  location: LatLng;
+  type: FavoriteType;
+  address?: string;
+}): Promise<FavoritePlace | null> => {
+  try {
+    const response = await api.post('/favorites/', favorite);
+    const raw = response.data;
+    const rawId = raw.id ?? raw._id;
+    let id = '';
+    if (rawId) {
+      id = typeof rawId === 'string' ? rawId : rawId.$oid || String(rawId);
+    }
+    return { ...raw, id } as FavoritePlace;
+  } catch (error) {
+    console.error('Error guardando favorito:', error);
+    return null;
+  }
+};
+
+export const deleteFavorite = async (id: string): Promise<boolean> => {
+  try {
+    await api.delete(`/favorites/${id}`);
+    return true;
+  } catch (error) {
+    console.error('Error eliminando favorito:', error);
+    return false;
+  }
+};
 
 // ============== TIPOS ==============
 export interface WeatherInfo {
