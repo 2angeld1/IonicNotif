@@ -52,7 +52,9 @@ const HomePage: React.FC = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [apiAvailable, setApiAvailable] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
-  
+  const [isBackendLoading, setIsBackendLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('Despertando al servidor...');
+
   // Estado del modelo ML
   const [modelStatus, setModelStatus] = useState<{
     trips_count: number;
@@ -71,11 +73,26 @@ const HomePage: React.FC = () => {
   // Ciudad de Panamá por defecto
   const defaultCenter: LatLng = { lat: 8.9824, lng: -79.5199 };
 
-  // Verificar disponibilidad del API y cargar datos iniciales
+  // Verificar disponibilidad del API y cargar datos iniciales con reintentos para Render
   useEffect(() => {
     const initializeData = async () => {
-      const isHealthy = await checkApiHealth();
+      let isHealthy = false;
+      let retries = 0;
+      const maxRetries = 15; // Aproximadamente 45-60 segundos
+
+      while (!isHealthy && retries < maxRetries) {
+        if (retries > 0) {
+          setLoadingMessage(`Cargando sistema (${retries}/${maxRetries})...`);
+        }
+        isHealthy = await checkApiHealth();
+        if (!isHealthy) {
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          retries++;
+        }
+      }
+
       setApiAvailable(isHealthy);
+      setIsBackendLoading(false);
       
       if (isHealthy) {
         // Cargar incidencias
@@ -93,6 +110,8 @@ const HomePage: React.FC = () => {
         // Cargar lugares favoritos
         const favoritesData = await getFavorites();
         setFavorites(favoritesData);
+      } else {
+        setToast({ show: true, message: 'El servidor tardó demasiado en responder. Intenta recargar.' });
       }
     };
     
@@ -493,6 +512,26 @@ const HomePage: React.FC = () => {
           onDidDismiss={() => setToast({ show: false, message: '' })}
           position="bottom"
         />
+
+        {/* Pantalla de carga inicial (Overlay) para Render Cold Start */}
+        {isBackendLoading && (
+          <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-white/80 backdrop-blur-xl">
+            <div className="relative">
+              {/* Spinner animado personalizado */}
+              <div className="w-24 h-24 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <IonIcon icon={refreshOutline} className="w-8 h-8 text-blue-600 animate-pulse" />
+              </div>
+            </div>
+            <h2 className="mt-8 text-2xl font-bold text-gray-800">Ionic Notif</h2>
+            <p className="mt-2 text-gray-500 font-medium animate-pulse">{loadingMessage}</p>
+            <div className="mt-12 flex gap-2">
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        )}
       </IonContent>
     </IonPage>
   );

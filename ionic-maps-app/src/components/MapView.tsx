@@ -186,31 +186,32 @@ const MapController: React.FC<{
     return () => clearTimeout(timer);
   }, [map]);
 
+  // Efecto para centrado inicial o cambio de ruta/puntos
   useEffect(() => {
-    if (isRouteMode && userLocation) {
-      // En modo ruta, enfocamos al usuario con un zoom más cerrado
-      map.setView([userLocation.lat, userLocation.lng], 17, {
-        animate: true,
-        duration: 1
-      });
-    } else if (route && route.coordinates.length > 1) {
-      // Ajustar vista a la ruta completa
+    if (route && route.coordinates.length > 1) {
       const bounds = L.latLngBounds(
         route.coordinates.map(([lng, lat]) => [lat, lng] as [number, number])
       );
       map.fitBounds(bounds, { padding: [50, 50] });
     } else if (start && end) {
-      const bounds = L.latLngBounds([
-        [start.lat, start.lng],
-        [end.lat, end.lng],
-      ]);
+      const bounds = L.latLngBounds([[start.lat, start.lng], [end.lat, end.lng]]);
       map.fitBounds(bounds, { padding: [50, 50] });
-    } else if (start) {
+    } else if (start && !route) {
       map.setView([start.lat, start.lng], 14);
-    } else if (end) {
+    } else if (end && !route) {
       map.setView([end.lat, end.lng], 14);
     }
-  }, [start, end, route, map, isRouteMode, userLocation]);
+  }, [start, end, route, map]); // Eliminado userLocation e isRouteMode de aquí
+
+  // Efecto separado para el modo navegación
+  useEffect(() => {
+    if (isRouteMode && userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], 17, {
+        animate: true,
+        duration: 1
+      });
+    }
+  }, [isRouteMode, userLocation, map]);
 
   return null;
 };
