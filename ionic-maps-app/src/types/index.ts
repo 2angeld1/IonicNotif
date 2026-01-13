@@ -15,11 +15,13 @@ export interface RouteStep {
   distance: number;
   duration: number;
   name: string;
+  location?: LatLng; // Coordenadas del paso para detección automática
 }
 
 export interface RouteInfo {
   distance: number; // en metros
-  duration: number; // en segundos
+  duration: number; // en segundos (base)
+  duration_in_traffic?: number; // en segundos (con tráfico)
   coordinates: [number, number][]; // [lng, lat]
   steps?: RouteStep[];
   isEstimate?: boolean;

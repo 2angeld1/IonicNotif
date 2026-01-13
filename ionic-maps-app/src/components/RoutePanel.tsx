@@ -1,19 +1,18 @@
 import React from 'react';
 import { IonIcon, IonSpinner } from '@ionic/react';
-import { 
-  navigateOutline, 
-  timeOutline, 
-  speedometerOutline, 
-  swapVerticalOutline, 
-  trashOutline, 
+import {
+  navigateOutline,
+  timeOutline,
+  speedometerOutline,
+  swapVerticalOutline,
+  trashOutline,
   flagOutline,
   saveOutline,
-  chevronDownOutline,
-  chevronUpOutline,
   carOutline
 } from 'ionicons/icons';
 import type { RouteInfo, LatLng, FavoritePlace } from '../types';
 import LocationSearch from './LocationSearch';
+import { formatDistance, formatDuration } from '../utils/geoUtils';
 
 interface RoutePanelProps {
   startLocation: { coords: LatLng | null; name: string };
@@ -33,9 +32,8 @@ interface RoutePanelProps {
     ready_for_training: boolean;
     is_trained: boolean;
   };
-  isExpanded: boolean;
-  onToggleExpand: () => void;
   favorites?: FavoritePlace[];
+  isModal?: boolean;
 }
 
 const RoutePanel: React.FC<RoutePanelProps> = ({
@@ -52,67 +50,17 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
   isRouteMode,
   onToggleRouteMode,
   modelStatus,
-  isExpanded,
-  onToggleExpand,
   favorites = [],
+  isModal = false,
 }) => {
-  const formatDistance = (meters: number): string => {
-    if (meters >= 1000) {
-      return `${(meters / 1000).toFixed(1)} km`;
-    }
-    return `${Math.round(meters)} m`;
-  };
 
-  const formatDuration = (seconds: number): string => {
-    if (seconds === 0) return 'N/A';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}min`;
-    }
-    return `${minutes} min`;
-  };
 
   return (
-    <div className="absolute top-0 left-0 right-0 z-[1000] p-2 flex justify-center">
-      <div className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300">
-        {/* Header - Accordion Toggle */}
-        <div
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 flex items-center justify-between cursor-pointer active:opacity-90"
-          onClick={onToggleExpand}
-        >
-          <div className="flex items-center gap-2">
-            <div className={`p-1 rounded-lg ${isExpanded ? 'bg-white/20' : 'bg-emerald-400/20'}`}>
-              <IonIcon icon={navigateOutline} className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h5 className="text-white font-bold text-xs">
-                {isExpanded ? 'Planifica tu ruta' : 'Ruta activa'}
-              </h5>
-              {!isExpanded && endLocation.coords && (
-                <p className="text-[10px] text-blue-100 truncate max-w-[150px]">
-                  Hacia: {endLocation.name.split(',')[0]}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!isExpanded && route && (
-              <div className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] text-white font-bold">
-                {formatDuration(route.duration)}
-              </div>
-            )}
-            <IonIcon
-              icon={isExpanded ? chevronUpOutline : chevronDownOutline}
-              className="w-4 h-4 text-white transition-transform duration-300"
-            />
-          </div>
-        </div>
-
-        {/* Body - Animation and visibility governed by isExpanded */}
-        <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-          <div className="p-3">
+    <div className={isModal ? "w-full h-full" : "absolute top-0 left-0 right-0 z-[1000] p-2 flex justify-center"}>
+      <div className={`${isModal ? "w-full" : "w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-gray-100 overflow-hidden"} transition-all duration-300`}>
+        {/* Body */}
+        <div className="h-full opacity-100">
+          <div className={isModal ? "p-4" : "p-3"}>
             <div className="flex items-stretch gap-2">
               {/* Línea conectora */}
               <div className="flex flex-col items-center py-2">

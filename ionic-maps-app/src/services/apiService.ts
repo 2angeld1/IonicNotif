@@ -119,8 +119,14 @@ export interface TripData {
   start_name?: string;
   end_name?: string;
   distance: number;
-  estimated_duration: number;
-  actual_duration: number;
+  estimated_duration: number; // Tiempo base (sin tráfico)
+  actual_duration: number;    // Tiempo medido o con tráfico
+  // Factores para la IA
+  weather_condition?: string;
+  temperature?: number;
+  hour?: number;             // 0-23
+  day_of_week?: number;      // 0-6
+  traffic_intensity?: number; // Ratio actual_duration / estimated_duration
 }
 
 // ============== RUTAS ==============

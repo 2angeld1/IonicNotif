@@ -4,11 +4,18 @@ import { setupIonicReact } from '@ionic/react'
 import './index.css'
 import App from './App.tsx'
 
+import { APIProvider } from '@vis.gl/react-google-maps';
+
 setupIonicReact()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <APIProvider
+      apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+      libraries={['places']}
+    >
+      <App />
+    </APIProvider>
   </StrictMode>,
 )
 

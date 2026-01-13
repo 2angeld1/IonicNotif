@@ -12,8 +12,6 @@
 @import "@ionic/react/css/flex-utils.css";
 @import "@ionic/react/css/display.css";
 
-/* Leaflet CSS */
-@import "leaflet/dist/leaflet.css";
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -24,8 +22,4 @@ body {
   padding: 0;
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-}
 

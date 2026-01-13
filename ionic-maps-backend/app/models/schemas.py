@@ -100,8 +100,17 @@ class TripCreate(BaseModel):
     start_name: Optional[str] = None
     end_name: Optional[str] = None
     distance: float
-    estimated_duration: float  # Lo que OSRM predijo
-    actual_duration: float  # Lo que realmente tardó el usuario
+    estimated_duration: float  # Lo que Google/OSRM predijo
+    actual_duration: float     # Lo que realmente tardó (con tráfico)
+    
+    # Features para ML
+    weather_condition: Optional[str] = None
+    temperature: Optional[float] = None
+    hour: Optional[int] = None
+    day_of_week: Optional[int] = None
+    traffic_intensity: Optional[float] = 1.0
+    had_incidents: bool = False
+    incident_types: List[str] = []
 
 
 class Trip(BaseModel):

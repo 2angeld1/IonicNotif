@@ -1,139 +1,136 @@
-import axios from 'axios';
 import type { LocationSuggestion, RouteInfo } from '../types';
 
-const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
-// OSRM Demo Server - Gratuito y traza rutas reales sobre calles
-const OSRM_BASE_URL = 'https://router.project-osrm.org';
-
 /**
- * Buscar ubicaciones por texto usando Nominatim (OpenStreetMap)
+ * Buscar ubicaciones por texto usando Google Maps Places Autocomplete
+ * Usamos el servicio de Google Maps que se carga globalmente
  */
 export const searchLocations = async (query: string): Promise<LocationSuggestion[]> => {
   if (!query || query.length < 3) return [];
-  
-  try {
-    const response = await axios.get(`${NOMINATIM_BASE_URL}/search`, {
-      params: {
-        q: query,
-        format: 'json',
-        limit: 10,
-        addressdetails: 1,
-        dedupe: 1,
-        'accept-language': 'es',
-        countrycodes: 'pa', // Priorizar Panamá
-        viewbox: '-83.05,9.65,-77.16,7.21', // Bounding box de Panamá
-        bounded: 0, // 0 = Priorizar pero no limitar estrictamente
+
+  return new Promise((resolve) => {
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      console.error('Google Maps Places library not loaded');
+      resolve([]);
+      return;
+    }
+
+    const service = new google.maps.places.AutocompleteService();
+    service.getPlacePredictions(
+      {
+        input: query,
+        locationBias: {
+          radius: 50000,
+          center: { lat: 8.9824, lng: -79.5199 } // Ciudad de Panamá como bias
+        },
+        // sessionToken: sessionToken, // Opcional, ayuda con costos pero puede limitar si no se maneja bien
+        // componentRestrictions: { country: 'pa' }, // Comentamos para ampliar la búsqueda si no encuentra nada
       },
-      headers: {
-        'User-Agent': 'IonicMapsApp/1.0',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error buscando ubicaciones:', error);
-    return [];
-  }
+      async (predictions, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+          resolve([]);
+          return;
+        }
+
+        // Google Places Autocomplete no da lat/lng directamente, necesitamos geocodificar o usar PlacesService
+        // Para no hacer 10 peticiones de geocodificación, devolveremos los resultados y el componente se encargará de obtener la posición al seleccionar
+        const results: LocationSuggestion[] = predictions.map((p) => ({
+          display_name: p.description,
+          lat: '0', // Se obtendrá al seleccionar
+          lon: '0',
+          place_id: p.place_id as any, // Usamos place_id de Google
+        }));
+
+        resolve(results);
+      }
+    );
+  });
 };
 
 /**
- * Obtener la ruta entre dos puntos usando OSRM (rutas reales sobre calles)
+ * Obtener detalles de una ubicación (específicamente lat/lng) usando place_id
+ */
+export const getPlaceDetails = async (placeId: string): Promise<{ lat: number; lng: number } | null> => {
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ placeId: placeId }, (results, status) => {
+      if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+        const loc = results[0].geometry.location;
+        resolve({ lat: loc.lat(), lng: loc.lng() });
+      } else {
+        console.error('Error en geocodificación:', status);
+        resolve(null);
+      }
+    });
+  });
+};
+
+/**
+ * Obtener la ruta entre dos puntos usando Google Maps Directions Service
  */
 export const getRoute = async (
   start: { lat: number; lng: number },
   end: { lat: number; lng: number }
 ): Promise<RouteInfo | null> => {
-  try {
-    // OSRM usa formato: /route/v1/{profile}/{coordinates}
-    // coordinates: lng,lat;lng,lat
-    const coordinates = `${start.lng},${start.lat};${end.lng},${end.lat}`;
-    
-    const response = await axios.get(
-      `${OSRM_BASE_URL}/route/v1/driving/${coordinates}`,
+  return new Promise((resolve) => {
+    const directionsService = new google.maps.DirectionsService();
+
+    directionsService.route(
       {
-        params: {
-          overview: 'full',
-          geometries: 'geojson',
-          steps: true,
-        },
+        origin: start,
+        destination: end,
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(),
+          trafficModel: google.maps.TrafficModel.BEST_GUESS
+        }
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result && result.routes[0]) {
+          const route = result.routes[0];
+          const leg = route.legs[0];
+
+          const path = route.overview_path.map(p => [p.lng(), p.lat()] as [number, number]);
+
+          const steps = leg.steps.map(step => ({
+            instruction: step.instructions.replace(/<[^>]*>?/gm, ''),
+            distance: step.distance?.value || 0,
+            duration: step.duration?.value || 0,
+            name: '',
+            location: step.start_location ? {
+              lat: step.start_location.lat(),
+              lng: step.start_location.lng()
+            } : undefined
+          }));
+
+          resolve({
+            distance: leg.distance?.value || 0,
+            duration: leg.duration?.value || 0,
+            duration_in_traffic: leg.duration_in_traffic?.value || leg.duration?.value || 0,
+            coordinates: path,
+            steps: steps
+          });
+        } else {
+          console.error('Error obteniendo ruta:', status);
+          resolve(null);
+        }
       }
     );
-
-    if (response.data.code !== 'Ok' || !response.data.routes.length) {
-      throw new Error('No se encontró ruta');
-    }
-
-    const route = response.data.routes[0];
-    const { distance, duration } = route;
-    // OSRM devuelve coordenadas en formato [lng, lat]
-    const coordinates_route = route.geometry.coordinates;
-
-    // Extraer pasos de navegación si existen
-    const steps = route.legs?.[0]?.steps?.map((step: any) => ({
-      instruction: step.maneuver?.instruction || '',
-      distance: step.distance,
-      duration: step.duration,
-      name: step.name || ''
-    }));
-
-    return {
-      distance,
-      duration,
-      coordinates: coordinates_route,
-      steps
-    };
-  } catch (error) {
-    console.error('Error obteniendo ruta:', error);
-    // Fallback: línea directa si falla
-    return {
-      distance: calculateDirectDistance(start, end),
-      duration: 0,
-      coordinates: [
-        [start.lng, start.lat],
-        [end.lng, end.lat],
-      ],
-      isEstimate: true,
-    };
-  }
-};
-
-/**
- * Calcular distancia directa entre dos puntos (fórmula Haversine)
- */
-const calculateDirectDistance = (
-  start: { lat: number; lng: number },
-  end: { lat: number; lng: number }
-): number => {
-  const R = 6371000; // Radio de la Tierra en metros
-  const dLat = ((end.lat - start.lat) * Math.PI) / 180;
-  const dLon = ((end.lng - start.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((start.lat * Math.PI) / 180) *
-      Math.cos((end.lat * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  });
 };
 
 /**
  * Geocodificación inversa - obtener dirección desde coordenadas
  */
 export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-  try {
-    const response = await axios.get(`${NOMINATIM_BASE_URL}/reverse`, {
-      params: {
-        lat,
-        lon: lng,
-        format: 'json',
-      },
-      headers: {
-        'Accept-Language': 'es',
-      },
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+        resolve(results[0].formatted_address);
+      } else {
+        console.error('Error en geocodificación inversa:', status);
+        resolve('Ubicación desconocida');
+      }
     });
-    return response.data.display_name || 'Ubicación desconocida';
-  } catch (error) {
-    console.error('Error en geocodificación inversa:', error);
-    return 'Ubicación desconocida';
-  }
+  });
 };

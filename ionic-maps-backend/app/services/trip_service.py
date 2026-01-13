@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
+import hashlib
 from bson import ObjectId
 from app.database import get_database
 from app.models.schemas import Trip, TripCreate, LatLng
+from app.utils.holidays import is_holiday_from_datetime
 
 
 class TripService:
@@ -11,18 +13,17 @@ class TripService:
     COLLECTION = "trips"
     
     @classmethod
-    async def save_trip(
-        cls,
-        trip: TripCreate,
-        weather_condition: Optional[str] = None,
-        temperature: Optional[float] = None,
-        had_incidents: bool = False,
-        incident_types: List[str] = []
-    ) -> Trip:
+    async def save_trip(cls, trip: TripCreate) -> Trip:
         """Guardar un viaje completado"""
         db = get_database()
         
         now = datetime.utcnow()
+        hour = trip.hour if trip.hour is not None else now.hour
+        day_of_week = trip.day_of_week if trip.day_of_week is not None else now.weekday()
+        
+        # Generar hash de ruta para identificar rutas frecuentes
+        route_key = f"{trip.start.lat:.4f},{trip.start.lng:.4f}-{trip.end.lat:.4f},{trip.end.lng:.4f}"
+        route_hash = hashlib.md5(route_key.encode()).hexdigest()[:12]
         
         doc = {
             "start": trip.start.model_dump(),
@@ -34,14 +35,18 @@ class TripService:
             "actual_duration": trip.actual_duration,
             
             # Features para ML
-            "hour": now.hour,
-            "day_of_week": now.weekday(),
-            "is_weekend": now.weekday() >= 5,
-            "is_holiday": False,  # TODO: Integrar calendario de festivos
-            "weather_condition": weather_condition,
-            "temperature": temperature,
-            "had_incidents": had_incidents,
-            "incident_types": incident_types,
+            "hour": hour,
+            "day_of_week": day_of_week,
+            "is_weekend": day_of_week >= 5,
+            "is_holiday": is_holiday_from_datetime(now),
+            "weather_condition": trip.weather_condition,
+            "temperature": trip.temperature,
+            "traffic_intensity": trip.traffic_intensity or (trip.actual_duration / trip.estimated_duration if trip.estimated_duration > 0 else 1.0),
+            "had_incidents": trip.had_incidents,
+            "incident_types": trip.incident_types,
+            
+            # Historial personal
+            "route_hash": route_hash,
             
             "created_at": now
         }

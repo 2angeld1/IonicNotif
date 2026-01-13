@@ -8,23 +8,13 @@ router = APIRouter(prefix="/trips", tags=["Viajes"])
 
 
 @router.post("/", response_model=Trip)
-async def save_trip(
-    trip: TripCreate,
-    weather_condition: str = None,
-    temperature: float = None,
-    had_incidents: bool = False
-):
+async def save_trip(trip: TripCreate):
     """
     Registrar un viaje completado
     
     Estos datos se usan para entrenar el modelo ML
     """
-    return await TripService.save_trip(
-        trip=trip,
-        weather_condition=weather_condition,
-        temperature=temperature,
-        had_incidents=had_incidents
-    )
+    return await TripService.save_trip(trip=trip)
 
 
 @router.get("/count")

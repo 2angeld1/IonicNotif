@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IonSpinner, IonIcon } from '@ionic/react';
 import { homeOutline, briefcaseOutline, starOutline, locationOutline } from 'ionicons/icons';
-import { searchLocations } from '../services/geocodingService';
+import { searchLocations, getPlaceDetails } from '../services/geocodingService';
 import type { LocationSuggestion, LatLng, FavoritePlace } from '../types';
 
 interface LocationSearchProps {
@@ -54,16 +54,20 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
     }, 400);
   };
 
-  const handleSelect = (suggestion: LocationSuggestion) => {
+  const handleSelect = async (suggestion: LocationSuggestion) => {
     // Acortar el nombre para mostrar
     const shortName = suggestion.display_name.split(',').slice(0, 3).join(', ');
     setQuery(shortName);
     setShowSuggestions(false);
     setSuggestions([]);
-    onLocationSelect(
-      { lat: parseFloat(suggestion.lat), lng: parseFloat(suggestion.lon) },
-      shortName
-    );
+
+    setIsLoading(true);
+    const coords = await getPlaceDetails(suggestion.place_id.toString());
+    setIsLoading(false);
+
+    if (coords) {
+      onLocationSelect(coords, shortName);
+    }
   };
 
   const handleFavoriteSelect = (fav: FavoritePlace) => {
