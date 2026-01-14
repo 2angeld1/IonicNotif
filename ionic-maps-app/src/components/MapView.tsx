@@ -25,6 +25,33 @@ const Polyline = (props: { points: google.maps.LatLngLiteral[], options?: google
   return null;
 };
 
+// Sub-componente para la Capa de Tráfico
+const TrafficLayer = ({ visible }: { visible: boolean }) => {
+  const map = useMap();
+  const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+
+    if (visible && !trafficLayerRef.current) {
+      trafficLayerRef.current = new google.maps.TrafficLayer();
+      trafficLayerRef.current.setMap(map);
+    } else if (!visible && trafficLayerRef.current) {
+      trafficLayerRef.current.setMap(null);
+      trafficLayerRef.current = null;
+    }
+
+    return () => {
+      if (trafficLayerRef.current) {
+        trafficLayerRef.current.setMap(null);
+        trafficLayerRef.current = null;
+      }
+    };
+  }, [map, visible]);
+
+  return null;
+};
+
 // Hook interno para centrar el mapa (usando el hook extraído)
 const MapInstanceController: React.FC<any> = (props) => {
   useMapController(props.start, props.end, props.route, props.userLocation, props.isRouteMode, props.userHeading);
@@ -81,6 +108,9 @@ const MapView: React.FC<MapViewProps> = ({
           userHeading={userHeading}
         />
 
+        {/* Capa de Tráfico - visible cuando hay ruta */}
+        <TrafficLayer visible={!!route} />
+
         {/* Marcadores de Inicio/Fin */}
         {start && !favorites.some(f => f.location.lat === start.lat && f.location.lng === start.lng) && (
           <AdvancedMarker position={start}>{renderCustomMarker('#22c55e')}</AdvancedMarker>
@@ -135,22 +165,38 @@ const MapView: React.FC<MapViewProps> = ({
         {userLocation && (
           <AdvancedMarker position={userLocation} zIndex={1000}>
             {isRouteMode ? (
+              // En modo navegación: puntero fijo hacia arriba (la cámara rota, no el puntero)
               <div
-                className="w-12 h-12 flex items-center justify-center transition-transform duration-300 ease-out"
+                className="w-14 h-14 flex items-center justify-center"
                 style={{
-                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
-                  transform: `rotate(${userHeading || 0}deg)`
+                  filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))',
                 }}
               >
                 <svg viewBox="0 0 24 24" className="w-full h-full">
                   <defs>
                     <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#4285F4" /><stop offset="100%" stopColor="#1a73e8" />
+                      <stop offset="0%" stopColor="#4285F4" />
+                      <stop offset="100%" stopColor="#1a73e8" />
                     </linearGradient>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="1" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
                   </defs>
-                  <path d="M12 2L4 20l8-4 8 4L12 2z" fill="url(#navGradient)" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-                  <circle cx="12" cy="12" r="3" fill="white" />
-                  <circle cx="12" cy="12" r="2" fill="#4285F4" />
+                  {/* Flecha apuntando siempre hacia arriba */}
+                  <path
+                    d="M12 2L4 20l8-5 8 5L12 2z"
+                    fill="url(#navGradient)"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                    filter="url(#glow)"
+                  />
+                  <circle cx="12" cy="13" r="3" fill="white" />
+                  <circle cx="12" cy="13" r="2" fill="#4285F4" />
                 </svg>
               </div>
             ) : (

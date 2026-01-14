@@ -20,7 +20,7 @@ import {
   shieldOutline,
   waterOutline,
   closeCircleOutline,
-  speedometerOutline,
+  megaphoneOutline,
   locationOutline,
   sendOutline,
 } from 'ionicons/icons';
@@ -48,7 +48,7 @@ const INCIDENT_TYPES: {
   { value: 'police', label: 'Policía', icon: shieldOutline, color: 'bg-blue-500' },
   { value: 'flood', label: 'Inundación', icon: waterOutline, color: 'bg-cyan-500' },
   { value: 'closed_road', label: 'Vía cerrada', icon: closeCircleOutline, color: 'bg-gray-600' },
-  { value: 'slow_traffic', label: 'Tráfico lento', icon: speedometerOutline, color: 'bg-amber-500' },
+    { value: 'protest', label: 'Manifestación', icon: megaphoneOutline, color: 'bg-amber-500' },
   { value: 'other', label: 'Otro', icon: locationOutline, color: 'bg-purple-500' },
 ];
 

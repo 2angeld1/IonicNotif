@@ -6,7 +6,7 @@ export const incidentIconConfig: Record<string, { color: string; emoji: string }
   police: { color: '#2563eb', emoji: '👮' },
   flood: { color: '#0891b2', emoji: '🌊' },
   closed_road: { color: '#4b5563', emoji: '🚫' },
-  slow_traffic: { color: '#d97706', emoji: '🐌' },
+  protest: { color: '#d97706', emoji: '📢' },
   other: { color: '#7c3aed', emoji: '📍' },
 };
 

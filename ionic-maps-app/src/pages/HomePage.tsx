@@ -44,9 +44,12 @@ const HomePage: React.FC = () => {
     handleDismissIncident, setModelStatus, refreshIncidents
   } = useAppData(defaultCenter);
 
-  // Primero la ubicación básica
-  const [tempRouteMode, setTempRouteMode] = useState(false);
-  const { userLocation, userHeading, handleRecenter } = useUserLocation(tempRouteMode);
+  // Navigation state primero para tener acceso a la ruta
+  const [internalRouteMode, setInternalRouteMode] = useState(false);
+  const [internalRoute, setInternalRoute] = useState<import('../types').RouteInfo | null>(null);
+
+  // Ubicación con suavizado y heading basado en ruta
+  const { userLocation, userHeading, handleRecenter } = useUserLocation(internalRouteMode, internalRoute);
 
   // Luego la navegación que usa la ubicación
   const navigation = useNavigation(userLocation, incidents);
@@ -60,10 +63,11 @@ const HomePage: React.FC = () => {
     handleCalculateRoute: calcRoute, handleRecalculateRoute: recalcRoute
   } = navigation;
 
-  // Sincronizar el modo ruta para la brújula
+  // Sincronizar ruta y modo para el hook de ubicación
   useEffect(() => {
-    setTempRouteMode(routeMode);
-  }, [routeMode]);
+    setInternalRouteMode(routeMode);
+    setInternalRoute(currentRoute);
+  }, [routeMode, currentRoute]);
 
   // Handlers locales para UI
   const onCalculateRoute = async () => {

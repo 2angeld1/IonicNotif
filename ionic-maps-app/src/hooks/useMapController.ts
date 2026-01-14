@@ -12,6 +12,7 @@ export const useMapController = (
 ) => {
   const map = useMap();
   const lastRouteMode = useRef(isRouteMode);
+  const lastPanTimeRef = useRef(0);
 
   // 1. Ajustar límites solo cuando cambia la ruta o los destinos (no con el GPS)
   useEffect(() => {
@@ -35,14 +36,22 @@ export const useMapController = (
 
     // Solo mover la cámara si estamos en modo ruta
     if (isRouteMode && userLocation) {
-      map.panTo(userLocation);
+      // Throttle de panTo para evitar actualizaciones excesivas
+      const now = Date.now();
+      if (now - lastPanTimeRef.current > 50) { // Máximo 20 FPS para la cámara
+        map.panTo(userLocation);
+        lastPanTimeRef.current = now;
+      }
       
-      // Solo forzar zoom al entrar al modo ruta
+      // Solo forzar configuración inicial al entrar al modo ruta
       if (!lastRouteMode.current) {
-        map.setZoom(18);
-        map.setTilt(45);
+        // Zoom más cercano y mayor inclinación para mejor experiencia de navegación
+        map.setZoom(19);
+        map.setTilt(60); // Mayor inclinación para vista más inmersiva
       }
 
+      // Actualizar heading de la cámara (la cámara mira en la dirección del heading)
+      // Esto hace que siempre estemos mirando "hacia adelante" en la ruta
       if (userHeading !== null && userHeading !== undefined) {
         map.setHeading(userHeading);
       }
@@ -52,6 +61,7 @@ export const useMapController = (
     if (!isRouteMode && lastRouteMode.current) {
       map.setTilt(0);
       map.setHeading(0);
+      map.setZoom(15);
     }
 
     lastRouteMode.current = isRouteMode;

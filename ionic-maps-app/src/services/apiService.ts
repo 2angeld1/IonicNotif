@@ -96,7 +96,7 @@ export type IncidentType =
   | 'police'
   | 'flood'
   | 'closed_road'
-  | 'slow_traffic'
+  | 'protest'
   | 'other';
 
 export interface IncidentTypeInfo {

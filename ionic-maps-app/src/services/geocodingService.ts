@@ -96,9 +96,11 @@ export const getRoute = async (
             distance: step.distance?.value || 0,
             duration: step.duration?.value || 0,
             name: '',
-            location: step.start_location ? {
-              lat: step.start_location.lat(),
-              lng: step.start_location.lng()
+            // Usamos end_location porque queremos detectar cuándo llegamos 
+            // al punto donde debemos ejecutar la maniobra
+            location: step.end_location ? {
+              lat: step.end_location.lat(),
+              lng: step.end_location.lng()
             } : undefined
           }));
 

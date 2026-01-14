@@ -8,7 +8,7 @@ import {
   shieldOutline,
   waterOutline,
   closeCircleOutline,
-  speedometerOutline,
+  megaphoneOutline,
   locationOutline,
   checkmarkCircleOutline,
   closeOutline,
@@ -30,7 +30,7 @@ const INCIDENT_CONFIG: Record<string, { icon: string; color: string; bgColor: st
   police: { icon: shieldOutline, color: 'text-blue-600', bgColor: 'bg-blue-100' },
   flood: { icon: waterOutline, color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   closed_road: { icon: closeCircleOutline, color: 'text-gray-600', bgColor: 'bg-gray-200' },
-  slow_traffic: { icon: speedometerOutline, color: 'text-amber-600', bgColor: 'bg-amber-100' },
+  protest: { icon: megaphoneOutline, color: 'text-amber-600', bgColor: 'bg-amber-100' },
   other: { icon: locationOutline, color: 'text-purple-600', bgColor: 'bg-purple-100' },
 };
 
@@ -49,7 +49,7 @@ const INCIDENT_LABELS: Record<string, string> = {
   police: 'Control policial',
   flood: 'Inundación',
   closed_road: 'Vía cerrada',
-  slow_traffic: 'Tráfico lento',
+  protest: 'Manifestación',
   other: 'Otro',
 };
 

@@ -41,3 +41,90 @@ export const getManeuverIcon = (instruction: string): string => {
   if (lower.includes('destino') || lower.includes('llegada') || lower.includes('destination')) return locationOutline;
   return arrowForwardOutline;
 };
+
+/**
+ * Calcula el bearing (dirección en grados) entre dos puntos
+ * 0° = Norte, 90° = Este, 180° = Sur, 270° = Oeste
+ */
+export const calculateBearing = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const toRad = (deg: number) => deg * Math.PI / 180;
+  const toDeg = (rad: number) => rad * 180 / Math.PI;
+
+  const dLng = toRad(lng2 - lng1);
+  const lat1Rad = toRad(lat1);
+  const lat2Rad = toRad(lat2);
+
+  const x = Math.sin(dLng) * Math.cos(lat2Rad);
+  const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+
+  const bearing = toDeg(Math.atan2(x, y));
+  return (bearing + 360) % 360; // Normalizar a 0-360
+};
+
+/**
+ * Encuentra el punto más cercano en la ruta y calcula el heading hacia el siguiente punto
+ */
+export const calculateRouteHeading = (
+  userLat: number,
+  userLng: number,
+  routeCoords: [number, number][] // [lng, lat][]
+): number | null => {
+  if (!routeCoords || routeCoords.length < 2) return null;
+
+  let closestIndex = 0;
+  let minDistance = Infinity;
+
+  // Encontrar el punto más cercano en la ruta
+  for (let i = 0; i < routeCoords.length; i++) {
+    const [lng, lat] = routeCoords[i];
+    const dist = calculateDistance(userLat, userLng, lat, lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIndex = i;
+    }
+  }
+
+  // Buscar el siguiente punto en la ruta (adelante del usuario)
+  // Usamos el siguiente punto o el que esté al menos 20m adelante
+  let nextIndex = closestIndex + 1;
+  while (nextIndex < routeCoords.length - 1) {
+    const [lng, lat] = routeCoords[nextIndex];
+    const dist = calculateDistance(userLat, userLng, lat, lng);
+    if (dist > 20) break; // Al menos 20m adelante
+    nextIndex++;
+  }
+
+  if (nextIndex >= routeCoords.length) {
+    nextIndex = routeCoords.length - 1;
+  }
+
+  const [nextLng, nextLat] = routeCoords[nextIndex];
+  return calculateBearing(userLat, userLng, nextLat, nextLng);
+};
+
+/**
+ * Interpola suavemente entre dos conjuntos de coordenadas
+ */
+export const interpolatePosition = (
+  current: { lat: number; lng: number },
+  target: { lat: number; lng: number },
+  factor: number = 0.15 // Factor de suavizado (0-1), menor = más suave
+): { lat: number; lng: number } => {
+  return {
+    lat: current.lat + (target.lat - current.lat) * factor,
+    lng: current.lng + (target.lng - current.lng) * factor,
+  };
+};
+
+/**
+ * Interpola suavemente un ángulo (heading) considerando el wrap-around de 360°
+ */
+export const interpolateHeading = (current: number, target: number, factor: number = 0.1): number => {
+  let diff = target - current;
+
+  // Manejar el wrap-around de 360 grados
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+
+  return (current + diff * factor + 360) % 360;
+};
