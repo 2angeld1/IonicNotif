@@ -33,6 +33,7 @@ interface RoutePanelProps {
     is_trained: boolean;
   };
   favorites?: FavoritePlace[];
+  userLocation?: LatLng | null;
   isModal?: boolean;
 }
 
@@ -51,6 +52,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
   onToggleRouteMode,
   modelStatus,
   favorites = [],
+  userLocation,
   isModal = false,
 }) => {
 
@@ -78,6 +80,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   onLocationSelect={onStartChange}
                   color="green"
                   favorites={favorites}
+                  userLocation={userLocation}
                 />
 
                 <LocationSearch
@@ -93,36 +96,38 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
               {/* Botón swap */}
               <button
                 onClick={onSwapLocations}
-                className="self-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-200 hover:rotate-180"
+                className="self-center p-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-2xl transition-all duration-200 hover:rotate-180 shadow-sm active:scale-95"
                 title="Intercambiar ubicaciones"
               >
-                <IonIcon icon={swapVerticalOutline} className="w-4 h-4 text-gray-600" />
+                <IonIcon icon={swapVerticalOutline} className="w-5 h-5 text-gray-700" />
               </button>
             </div>
 
-            {/* Botones de acción */}
-            <div className="flex gap-2 mt-3">
+            {/* Botones de acción principal */}
+            <div className="flex gap-3 mt-4">
               <button
                 onClick={onCalculateRoute}
                 disabled={!startLocation.coords || !endLocation.coords || isLoading}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:shadow-none disabled:translate-y-0 text-xs uppercase tracking-wide"
+                className="group relative flex-1 overflow-hidden rounded-2xl bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 active:scale-95 shadow-lg shadow-indigo-200"
               >
-                {isLoading ? (
-                  <IonSpinner name="crescent" className="w-4 h-4" />
-                ) : (
-                  <>
-                    <IonIcon icon={navigateOutline} className="w-4 h-4" />
-                    Calcular Ruta
-                  </>
-                )}
+                <div className="relative flex items-center justify-center gap-2 py-3.5 px-6 text-white font-bold">
+                  {isLoading ? (
+                    <IonSpinner name="crescent" className="w-5 h-5 text-white/80" />
+                  ) : (
+                    <>
+                      <IonIcon icon={navigateOutline} className="w-5 h-5" />
+                      <span className="text-sm tracking-wide">CALCULAR RUTA</span>
+                    </>
+                  )}
+                </div>
               </button>
 
               <button
                 onClick={onClear}
-                className="p-2 bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded-lg transition-all duration-200"
+                className="flex items-center justify-center w-12 bg-white border border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-2xl shadow-sm transition-all duration-200 active:scale-95"
                 title="Limpiar"
               >
-                <IonIcon icon={trashOutline} className="w-4 h-4" />
+                <IonIcon icon={trashOutline} className="w-5 h-5" />
               </button>
             </div>
 
@@ -160,15 +165,22 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 mt-3">
+                <div className="flex flex-col gap-3 mt-4">
                   {/* Botón Modo Ruta */}
                   {onToggleRouteMode && (
                     <button
                       onClick={onToggleRouteMode}
-                      className={`w-full ${isRouteMode ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-[10px] font-bold py-2 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 uppercase tracking-wide`}
+                      className={`relative w-full overflow-hidden rounded-2xl transition-all duration-200 active:scale-95 shadow-md ${isRouteMode
+                        ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'
+                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                        }`}
                     >
-                      <IonIcon icon={carOutline} className="w-4 h-4" />
-                      {isRouteMode ? 'Salir Modo Ruta' : 'Iniciar Modo Ruta'}
+                      <div className="relative flex items-center justify-center gap-3 py-3.5 px-4 text-white">
+                        <IonIcon icon={carOutline} className="w-5 h-5" />
+                        <span className="font-bold text-sm tracking-wide">
+                          {isRouteMode ? 'DETENER NAVEGACIÓN' : 'INICIAR NAVEGACIÓN'}
+                        </span>
+                      </div>
                     </button>
                   )}
 
@@ -176,10 +188,12 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   {onSaveTrip && (
                     <button
                       onClick={onSaveTrip}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-bold py-2.5 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md uppercase tracking-wide"
+                      className="group relative w-full overflow-hidden rounded-2xl bg-emerald-600 hover:bg-emerald-700 transition-all duration-200 active:scale-95 shadow-md shadow-emerald-200"
                     >
-                      <IonIcon icon={saveOutline} className="w-4 h-4" />
-                      Guardar Viaje
+                      <div className="relative flex items-center justify-center gap-2 py-3 px-4 text-white">
+                        <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
+                        <span className="font-semibold text-xs tracking-wider">GUARDAR VIAJE EN HISTORIAL</span>
+                      </div>
                     </button>
                   )}
                 </div>
@@ -189,14 +203,16 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
             {/* Panel de Estado ML */}
             {modelStatus && (
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
-                  <div className="text-[10px] text-gray-600 w-full text-center">
-                    <span className="font-bold text-gray-900">{modelStatus.trips_count}</span> viajes registrados
+                <div className="flex items-center justify-center gap-3 bg-gray-50 rounded-xl p-2.5">
+                  <div className="text-[10px] text-gray-500 font-medium">
+                    <span className="text-gray-900 font-bold text-sm">{modelStatus.trips_count}</span> viajes registrados
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${modelStatus.is_trained ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                  <div className="w-px h-4 bg-gray-300"></div>
+                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${modelStatus.is_trained ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                     }`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${modelStatus.is_trained ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
                     {modelStatus.is_trained ? 'IA Lista' : 'Entrenando'}
-                  </span>
+                  </div>
                 </div>
               </div>
             )}

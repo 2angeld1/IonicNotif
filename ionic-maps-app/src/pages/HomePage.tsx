@@ -175,6 +175,7 @@ const HomePage: React.FC = () => {
                   isRouteMode={routeMode}
                   onToggleRouteMode={() => { setRouteMode(!routeMode); if (!routeMode) setIsRouteModalOpen(false); }}
                   favorites={favorites}
+                  userLocation={userLocation}
                   isModal={true}
                 />
               </div>

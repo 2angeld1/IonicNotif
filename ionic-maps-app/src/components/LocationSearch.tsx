@@ -11,6 +11,7 @@ interface LocationSearchProps {
   onLocationSelect: (location: LatLng, displayName: string) => void;
   color?: string;
   favorites?: FavoritePlace[];
+  userLocation?: LatLng | null;
 }
 
 const LocationSearch: React.FC<LocationSearchProps> = ({
@@ -19,6 +20,7 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
   onLocationSelect,
   color = 'blue',
   favorites = [],
+  userLocation,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [query, setQuery] = useState(value);
@@ -110,9 +112,27 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
       </div>
 
       {/* Dropdown de Favoritos (Solo visible al hacer foco y sin texto) */}
-      {isFocused && favorites.length > 0 && !query && (
+      {isFocused && !query && (userLocation || favorites.length > 0) && (
         <div className="absolute z-[1002] w-full bg-white mt-1 rounded-xl shadow-xl border border-gray-100 p-2">
-          <div className="text-[10px] font-bold text-gray-400 mb-1 px-1">TUS LUGARES</div>
+          {userLocation && (
+            <button
+              onClick={() => {
+                onLocationSelect(userLocation, 'Mi ubicación');
+                setQuery('Mi ubicación');
+                setIsFocused(false);
+              }}
+              className="flex items-center gap-2 px-2 py-3 mb-2 hover:bg-blue-50 rounded-lg transition-colors w-full text-left border border-blue-100 bg-blue-50/50"
+            >
+              <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600">
+                <IonIcon icon={locationOutline} className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-blue-700">Tu ubicación actual</span>
+            </button>
+          )}
+
+          {(favorites.length > 0 || userLocation) && (
+            <div className="text-[10px] font-bold text-gray-400 mb-1 px-1 mt-1">TUS LUGARES</div>
+          )}
           <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
             {favorites.map((fav) => (
               <button
