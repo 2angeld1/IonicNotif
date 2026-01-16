@@ -119,12 +119,47 @@ const MapView: React.FC<MapViewProps> = ({
           <AdvancedMarker position={end}>{renderCustomMarker('#ef4444')}</AdvancedMarker>
         )}
 
-        {/* Polilíneas de Ruta */}
-        {routePositions.length > 1 && (
-          <>
-            <Polyline points={routePositions} options={{ strokeColor: '#1e40af', strokeOpacity: 0.3, strokeWeight: 8 }} />
-            <Polyline points={routePositions} options={{ strokeColor: '#3b82f6', strokeOpacity: 1, strokeWeight: 5 }} />
-          </>
+        {/* Polilíneas de Ruta con Estilo Waze Premium (Segmentadas por Tráfico) */}
+        {route && route.steps && route.steps.length > 0 ? (
+          // Renderizado por segmentos (Alta calidad + Tráfico)
+          route.steps.map((step, idx) => {
+            if (!step.path || step.path.length < 2) return null;
+
+            // Definir calor del borde según tráfico
+            let borderColor = '#151b54'; // Azul media noche (Default)
+            if (step.traffic_status === 'severe') borderColor = '#b91c1c'; // Rojo oscuro
+            else if (step.traffic_status === 'heavy') borderColor = '#c2410c'; // Naranja oscuro
+            else if (step.traffic_status === 'moderate') borderColor = '#ca8a04'; // Amarillo oscuro
+
+            return (
+              <React.Fragment key={idx}>
+                {/* 1. Sombra */}
+                <Polyline
+                  points={step.path}
+                  options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }}
+                />
+                {/* 2. Borde (Color dinámico por tráfico) */}
+                <Polyline
+                  points={step.path}
+                  options={{ strokeColor: borderColor, strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }}
+                />
+                {/* 3. Ruta (Siempre azul brillante) */}
+                <Polyline
+                  points={step.path}
+                  options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }}
+                />
+              </React.Fragment>
+            );
+          })
+        ) : (
+          // Fallback: Renderizado simple si no hay steps detallados
+          routePositions.length > 1 && (
+            <>
+                <Polyline points={routePositions} options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }} />
+                <Polyline points={routePositions} options={{ strokeColor: '#151b54', strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }} />
+                <Polyline points={routePositions} options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }} />
+              </>
+            )
         )}
 
         {/* Incidencias */}

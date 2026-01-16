@@ -16,6 +16,8 @@ export interface RouteStep {
   duration: number;
   name: string;
   location?: LatLng; // Coordenadas del paso para detección automática
+  path?: LatLng[]; // Geometría detallada del paso
+  traffic_status?: 'normal' | 'moderate' | 'heavy' | 'severe';
 }
 
 export interface RouteInfo {

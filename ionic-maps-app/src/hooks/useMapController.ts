@@ -13,6 +13,7 @@ export const useMapController = (
   const map = useMap();
   const lastRouteMode = useRef(isRouteMode);
   const lastPanTimeRef = useRef(0);
+  const lastRouteRef = useRef<RouteInfo | null>(null);
 
   // 1. Ajustar límites solo cuando cambia la ruta o los destinos (no con el GPS)
   useEffect(() => {
@@ -43,8 +44,9 @@ export const useMapController = (
         lastPanTimeRef.current = now;
       }
       
-      // Solo forzar configuración inicial al entrar al modo ruta
-      if (!lastRouteMode.current) {
+      // Forzar configuración inicial al entrar al modo ruta O cuando cambia la ruta (recálculo)
+      const routeChanged = route !== lastRouteRef.current && route !== null;
+      if (!lastRouteMode.current || routeChanged) {
         // Zoom más cercano y mayor inclinación para mejor experiencia de navegación
         map.setZoom(19);
         map.setTilt(60); // Mayor inclinación para vista más inmersiva
@@ -65,7 +67,9 @@ export const useMapController = (
     }
 
     lastRouteMode.current = isRouteMode;
-  }, [isRouteMode, userLocation, userHeading, map]);
+    lastRouteRef.current = route;
+  }, [isRouteMode, userLocation, userHeading, map, route]);
 
   return map;
 };
+

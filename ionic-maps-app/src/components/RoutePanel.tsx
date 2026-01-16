@@ -25,6 +25,7 @@ interface RoutePanelProps {
   onSwapLocations: () => void;
   onClear: () => void;
   onSaveTrip?: () => void;
+  isSaving?: boolean;
   isRouteMode?: boolean;
   onToggleRouteMode?: () => void;
   modelStatus?: {
@@ -48,6 +49,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
   onSwapLocations,
   onClear,
   onSaveTrip,
+  isSaving = false,
   isRouteMode,
   onToggleRouteMode,
   modelStatus,
@@ -90,6 +92,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   onLocationSelect={onEndChange}
                   color="red"
                   favorites={favorites}
+                  userLocation={userLocation}
                 />
               </div>
 
@@ -188,11 +191,21 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   {onSaveTrip && (
                     <button
                       onClick={onSaveTrip}
-                      className="group relative w-full overflow-hidden rounded-2xl bg-emerald-600 hover:bg-emerald-700 transition-all duration-200 active:scale-95 shadow-md shadow-emerald-200"
+                      disabled={isSaving}
+                      className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-200 active:scale-95 shadow-md shadow-emerald-200 ${isSaving ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                       <div className="relative flex items-center justify-center gap-2 py-3 px-4 text-white">
-                        <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
-                        <span className="font-semibold text-xs tracking-wider">GUARDAR VIAJE EN HISTORIAL</span>
+                        {isSaving ? (
+                          <>
+                            <IonSpinner name="crescent" className="w-4 h-4" />
+                            <span className="font-semibold text-xs tracking-wider">GUARDANDO...</span>
+                          </>
+                        ) : (
+                          <>
+                              <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
+                            <span className="font-semibold text-xs tracking-wider">GUARDAR Y ENTRENAR IA</span>
+                          </>
+                        )}
                       </div>
                     </button>
                   )}

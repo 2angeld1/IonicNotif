@@ -19,6 +19,7 @@ import { useNavigation } from '../hooks/useNavigation';
 // Services & Utils
 import { saveTrip, trainModel, getModelStatus, type TripData } from '../services/apiService';
 import { formatDistance, formatDuration } from '../utils/geoUtils';
+import { startBackgroundKeepAlive, stopBackgroundKeepAlive } from '../utils/backgroundService';
 import type { LatLng } from '../types';
 import type { Incident } from '../services/apiService';
 
@@ -36,6 +37,7 @@ const HomePage: React.FC = () => {
   const [favoriteLocation, setFavoriteLocation] = useState<LatLng | null>(null);
   const [isMapActionSheetOpen, setIsMapActionSheetOpen] = useState(false);
   const [mapClickLocation, setMapClickLocation] = useState<LatLng | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Business Logic Hooks
   const {
@@ -82,7 +84,8 @@ const HomePage: React.FC = () => {
   };
 
   const handleSaveTripAction = async () => {
-    if (!currentRoute || !sLoc.coords || !eLoc.coords) return;
+    if (!currentRoute || !sLoc.coords || !eLoc.coords || isSaving) return;
+    setIsSaving(true);
     const now = new Date();
     const tripData: TripData = {
       start: sLoc.coords,
@@ -90,8 +93,8 @@ const HomePage: React.FC = () => {
       start_name: sLoc.name,
       end_name: eLoc.name,
       distance: currentRoute.distance,
-      estimated_duration: currentRoute.duration, // Base sin tráfico
-      actual_duration: currentRoute.duration_in_traffic || currentRoute.duration, // Con tráfico
+      estimated_duration: currentRoute.duration,
+      actual_duration: currentRoute.duration_in_traffic || currentRoute.duration,
       weather_condition: weather?.condition || 'unknown',
       temperature: weather?.temperature || 25,
       hour: now.getHours(),
@@ -99,12 +102,19 @@ const HomePage: React.FC = () => {
       traffic_intensity: currentRoute.duration_in_traffic ? currentRoute.duration_in_traffic / currentRoute.duration : 1.0,
     };
 
-    const success = await saveTrip(tripData);
-    if (success) {
-      setToast({ show: true, message: 'Viaje guardado. Entrenando IA...' });
-      await trainModel();
-      const status = await getModelStatus();
-      setModelStatus(status);
+    try {
+      const success = await saveTrip(tripData);
+      if (success) {
+        setToast({ show: true, message: 'Guardado. Entrenando IA...' });
+        await trainModel();
+        const status = await getModelStatus();
+        setModelStatus(status);
+        setToast({ show: true, message: '✅ IA entrenada exitosamente' });
+      }
+    } catch (error) {
+      setToast({ show: true, message: 'Error al guardar' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,7 +148,10 @@ const HomePage: React.FC = () => {
               steps={currentRoute.steps}
               userLocation={userLocation}
               isOffRoute={offRoute}
-              onClose={() => setRouteMode(false)}
+              onClose={() => {
+                setRouteMode(false);
+                stopBackgroundKeepAlive(); // Detener al cerrar
+              }}
               onRecalculateRoute={recalcRoute}
             />
           )}
@@ -169,11 +182,27 @@ const HomePage: React.FC = () => {
                   onEndChange={(c, n) => { setELoc({ coords: c, name: n }); setCurrentRoute(null); }}
                   onCalculateRoute={onCalculateRoute}
                   onSwapLocations={() => { const t = { ...sLoc }; setSLoc({ ...eLoc }); setELoc(t); setCurrentRoute(null); }}
-                  onClear={() => { setSLoc({ coords: null, name: '' }); setELoc({ coords: null, name: '' }); setCurrentRoute(null); setRouteMode(false); }}
+                  onClear={() => {
+                    setSLoc({ coords: null, name: '' });
+                    setELoc({ coords: null, name: '' });
+                    setCurrentRoute(null);
+                    setRouteMode(false);
+                    stopBackgroundKeepAlive(); // Detener al limpiar
+                  }}
                   onSaveTrip={handleSaveTripAction}
+                  isSaving={isSaving}
                   modelStatus={modelStatus}
                   isRouteMode={routeMode}
-                  onToggleRouteMode={() => { setRouteMode(!routeMode); if (!routeMode) setIsRouteModalOpen(false); }}
+                  onToggleRouteMode={() => {
+                    const newMode = !routeMode;
+                    if (newMode) {
+                      startBackgroundKeepAlive(); // Iniciar al activar
+                    } else {
+                      stopBackgroundKeepAlive(); // Detener al desactivar
+                    }
+                    setRouteMode(newMode);
+                    if (!newMode) setIsRouteModalOpen(false);
+                  }}
                   favorites={favorites}
                   userLocation={userLocation}
                   isModal={true}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { calculateDistance } from '../utils/geoUtils';
 import { sendNotification, requestNotificationPermission } from '../services/notificationService';
 import type { RouteStep, LatLng } from '../types';
@@ -16,20 +16,39 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
   const approachNotifiedRef = useRef<Set<number>>(new Set());
   const lastDistanceRef = useRef<number>(Infinity);
 
+  // Crear una clave única basada en el contenido de los pasos
+  // Esto detecta cuando los pasos cambian incluso si la referencia del array es la misma
+  const stepsKey = useMemo(() => {
+    if (!steps.length) return '';
+    return steps.map(s => `${s.instruction}|${s.distance}|${s.location?.lat}|${s.location?.lng}`).join(';');
+  }, [steps]);
+
   // Pedir permiso de notificaciones al montar
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Reset cuando cambian los pasos (nueva ruta)
+  // Reset cuando cambian los pasos (nueva ruta o recálculo)
   useEffect(() => {
+    console.log('[useRouteStepProgress] Resetting due to steps change');
     setCurrentStepIndex(0);
     setDistanceToNextStep(null);
     setIsApproaching(false);
     notifiedStepsRef.current.clear();
     approachNotifiedRef.current.clear();
     lastDistanceRef.current = Infinity;
-  }, [steps]);
+  }, [stepsKey]);
+
+  // Función de Texto a Voz
+  const speak = useCallback((text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -54,6 +73,19 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
     }
   }, []);
 
+  // Reset cuando cambian los pasos (nueva ruta o recálculo)
+  useEffect(() => {
+    console.log('[useRouteStepProgress] Resetting due to steps change');
+    setCurrentStepIndex(0);
+    setDistanceToNextStep(null);
+    setIsApproaching(false);
+    notifiedStepsRef.current.clear();
+    approachNotifiedRef.current.clear();
+    lastDistanceRef.current = Infinity;
+    // Opcional: Anunciar inicio
+    // if (steps.length > 0) speak(`Iniciando ruta. ${steps[0].instruction}`);
+  }, [stepsKey, speak]); // Agregamos speak a dep
+
   // Detectar progreso en la ruta
   useEffect(() => {
     if (!userLocation || !steps.length || currentStepIndex >= steps.length) return;
@@ -77,12 +109,15 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
         setIsApproaching(true);
         approachNotifiedRef.current.add(currentStepIndex);
 
-        // Notificación de acercamiento
+        // Notificación de acercamiento VISUAL
         sendNotification(`📍 En ${Math.round(distanceToCurrent)}m`, {
           body: currentStep.instruction,
           tag: 'nav-approaching',
           silent: false,
         });
+
+        // Notificación de VOZ
+        speak(`En ${Math.round(distanceToCurrent)} metros, ${currentStep.instruction.toLowerCase()}`);
       }
     }
 
@@ -101,12 +136,17 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
           playNotificationSound();
 
           const nextStep = steps[currentStepIndex + 1];
+          // Notificación visual
           sendNotification(`➡️ ${nextStep.instruction}`, {
             body: `Próximo paso en ${Math.round(nextStep.distance)}m`,
             tag: 'nav-step',
             renotify: true,
             requireInteraction: false,
           });
+
+          // VOZ: Instrucción inmediata del nuevo paso
+          // Ejemplo: "Continúa recto por 2 kilómetros"
+          speak(nextStep.instruction);
 
           setCurrentStepIndex(prev => prev + 1);
         } else {
@@ -116,12 +156,13 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
             tag: 'nav-arrived',
             requireInteraction: true,
           });
+          speak('Has llegado a tu destino. Felicidades.');
         }
       }
     }
 
     lastDistanceRef.current = distanceToCurrent;
-  }, [userLocation, steps, currentStepIndex, playNotificationSound]);
+  }, [userLocation, steps, currentStepIndex, playNotificationSound, speak]);
 
   const goToNextStep = useCallback(() => {
     if (currentStepIndex < steps.length - 1) {
@@ -143,6 +184,7 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
     isApproaching,
     goToNextStep,
     goToPreviousStep,
-    playNotificationSound
+    playNotificationSound,
+    speak // Exportamos speak por si acaso
   };
 };

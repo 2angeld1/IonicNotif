@@ -91,18 +91,41 @@ export const getRoute = async (
 
           const path = route.overview_path.map(p => [p.lng(), p.lat()] as [number, number]);
 
-          const steps = leg.steps.map(step => ({
-            instruction: step.instructions.replace(/<[^>]*>?/gm, ''),
-            distance: step.distance?.value || 0,
-            duration: step.duration?.value || 0,
-            name: '',
-            // Usamos end_location porque queremos detectar cuándo llegamos 
-            // al punto donde debemos ejecutar la maniobra
-            location: step.end_location ? {
-              lat: step.end_location.lat(),
-              lng: step.end_location.lng()
-            } : undefined
-          }));
+          const steps = leg.steps.map(step => {
+            // Analizar tráfico (Google a veces no da duration_in_traffic por step en API Standard, 
+            // pero si lo da, lo usamos. Si no, asumimos normal por defecto)
+            // @ts-ignore - duration_in_traffic a veces existe aunque los tipos no lo digan
+            const trafficDur = step.duration_in_traffic?.value;
+            const normalDur = step.duration?.value || 0;
+
+            let status: 'normal' | 'moderate' | 'heavy' | 'severe' = 'normal';
+            if (trafficDur) {
+              const ratio = trafficDur / normalDur;
+              if (ratio > 2.0) status = 'severe';
+              else if (ratio > 1.5) status = 'heavy';
+              else if (ratio > 1.2) status = 'moderate';
+            }
+
+            // Convertir Geometry a LatLng[]
+            // @ts-ignore - lat_lngs o path suele venir en el objeto step nativo
+            const stepPath = (step.lat_lngs || step.path || []).map((p: any) => ({
+              lat: typeof p.lat === 'function' ? p.lat() : p.lat,
+              lng: typeof p.lng === 'function' ? p.lng() : p.lng
+            }));
+
+            return {
+              instruction: step.instructions.replace(/<[^>]*>?/gm, ''),
+              distance: step.distance?.value || 0,
+              duration: step.duration?.value || 0,
+              name: '',
+              location: step.end_location ? {
+                lat: step.end_location.lat(),
+                lng: step.end_location.lng()
+              } : undefined,
+              path: stepPath,
+              traffic_status: status
+            };
+          });
 
           resolve({
             distance: leg.distance?.value || 0,
@@ -110,7 +133,8 @@ export const getRoute = async (
             duration_in_traffic: leg.duration_in_traffic?.value || leg.duration?.value || 0,
             coordinates: path,
             steps: steps
-          });
+          }); 
+
         } else {
           console.error('Error obteniendo ruta:', status);
           resolve(null);

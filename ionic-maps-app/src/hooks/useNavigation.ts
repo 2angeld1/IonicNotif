@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getRoute } from '../services/geocodingService';
 import { sendNotification } from '../services/notificationService';
-import { calculateDistance } from '../utils/geoUtils';
+import { calculateDistance, distanceToSegment } from '../utils/geoUtils';
 import type { LatLng, RouteInfo } from '../types';
 import type { Incident } from '../services/apiService';
 
@@ -16,6 +16,9 @@ export const useNavigation = (
   const [isOffRoute, setIsOffRoute] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Referencia para el debounce de fuera de ruta
+  const offRouteCounterRef = useRef(0);
+
   const handleCalculateRoute = useCallback(async (start?: LatLng, end?: LatLng) => {
     const s = start || startLocation.coords;
     const e = end || endLocation.coords;
@@ -24,7 +27,11 @@ export const useNavigation = (
     setIsLoading(true);
     try {
       const result = await getRoute(s, e);
-      if (result) setRoute(result);
+      if (result) {
+        setRoute(result);
+        setIsOffRoute(false);
+        offRouteCounterRef.current = 0;
+      }
       return result;
     } finally {
       setIsLoading(false);
@@ -35,6 +42,7 @@ export const useNavigation = (
     if (userLocation && endLocation.coords) {
       setStartLocation({ coords: userLocation, name: 'Mi ubicación' });
       setIsOffRoute(false);
+      offRouteCounterRef.current = 0;
       return await handleCalculateRoute(userLocation, endLocation.coords);
     }
     return null;
@@ -42,29 +50,64 @@ export const useNavigation = (
 
   // Detección de fuera de ruta y notificaciones
   useEffect(() => {
-    if (!isRouteMode || !userLocation || !route || route.coordinates.length === 0) {
+    if (!isRouteMode || !userLocation || !route || route.coordinates.length < 2 || isLoading) {
       setIsOffRoute(false);
+      offRouteCounterRef.current = 0;
       return;
     }
 
+    // Calcular la distancia mínima a CUALQUIER segmento de la ruta (más preciso que punto a punto)
     let minDistance = Infinity;
-    for (const [lng, lat] of route.coordinates) {
-      const dist = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
+
+    // Iteramos por segmentos (i a i+1)
+    for (let i = 0; i < route.coordinates.length - 1; i++) {
+      const [lng1, lat1] = route.coordinates[i];
+      const [lng2, lat2] = route.coordinates[i + 1];
+
+      const dist = distanceToSegment(
+        { lat: userLocation.lat, lng: userLocation.lng },
+        { lat: lat1, lng: lng1 },
+        { lat: lat2, lng: lng2 }
+      );
+
       if (dist < minDistance) minDistance = dist;
     }
 
-    const isOff = minDistance > 50;
-    if (isOff && !isOffRoute) {
-      sendNotification('⚠️ Te has desviado de la ruta', {
-        body: 'Pulsa aquí para recalcular la ruta automáticamente.',
-        tag: 'off-route',
-        renotify: true,
-        requireInteraction: true,
-        actions: [{ action: 'recalculate', title: 'Recalcular Ruta' }]
+    // Umbral aumentado a 70m para ser más tolerante
+    const isCurrentlyOff = minDistance > 70;
+
+    if (isCurrentlyOff) {
+      offRouteCounterRef.current += 1;
+      console.log(`[Navigation] Off route check: ${offRouteCounterRef.current}/3 (Dist: ${Math.round(minDistance)}m)`);
+    } else {
+      offRouteCounterRef.current = 0;
+      if (isOffRoute) setIsOffRoute(false); // Volvimos a la ruta
+    }
+
+    // Recálculo AUTOMÁTICO
+    if (offRouteCounterRef.current >= 3 && !isLoading) {
+      console.log('⚠️ Fuera de ruta confirmado. Recalculando automáticamente...');
+      offRouteCounterRef.current = 0; // Resetear contador
+      setIsOffRoute(true); // Activa flag visual momentáneo
+
+      // Notificación de voz/sonido opcional
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance('Recalculando ruta');
+        utterance.lang = 'es-ES';
+        window.speechSynthesis.speak(utterance);
+      }
+
+      sendNotification('Recalculando ruta...', {
+        body: 'Te has desviado, buscando nueva ruta.',
+        tag: 'recalc',
+        silent: true // Para no molestar demasiado
+      });
+
+      handleRecalculateRoute().then(() => {
+        setIsOffRoute(false);
       });
     }
-    setIsOffRoute(isOff);
-  }, [userLocation, route, isRouteMode, isOffRoute]);
+  }, [userLocation, route, isRouteMode, isOffRoute, isLoading, handleRecalculateRoute]);
 
   // Notificaciones de incidencias y progreso
   useEffect(() => {
