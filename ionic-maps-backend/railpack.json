@@ -1,0 +1,10 @@
+{
+  "buildAptPackages": [
+    "libgomp1"
+  ],
+  "deploy": {
+    "aptPackages": [
+      "libgomp1"
+    ]
+  }
+}
