@@ -57,11 +57,12 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
       const gainNode = audioCtx.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
+      // Tono fijo más limpio (subtle ding)
+      oscillator.frequency.setValueAtTime(980, audioCtx.currentTime);
 
-      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      // Envolvente de volumen suave
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
 
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);

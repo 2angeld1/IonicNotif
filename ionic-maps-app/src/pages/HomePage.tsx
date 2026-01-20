@@ -197,11 +197,11 @@ const HomePage: React.FC = () => {
                     const newMode = !routeMode;
                     if (newMode) {
                       startBackgroundKeepAlive(); // Iniciar al activar
+                      setIsRouteModalOpen(false); // Cierra el modal automáticamente al iniciar
                     } else {
                       stopBackgroundKeepAlive(); // Detener al desactivar
                     }
                     setRouteMode(newMode);
-                    if (!newMode) setIsRouteModalOpen(false);
                   }}
                   favorites={favorites}
                   userLocation={userLocation}
