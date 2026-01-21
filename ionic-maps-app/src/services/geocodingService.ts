@@ -69,7 +69,8 @@ export const getPlaceDetails = async (placeId: string): Promise<{ lat: number; l
  */
 export const getRoute = async (
   start: { lat: number; lng: number },
-  end: { lat: number; lng: number }
+  end: { lat: number; lng: number },
+  provideAlternatives: boolean = false
 ): Promise<RouteInfo | null> => {
   return new Promise((resolve) => {
     const directionsService = new google.maps.DirectionsService();
@@ -79,6 +80,7 @@ export const getRoute = async (
         origin: start,
         destination: end,
         travelMode: google.maps.TravelMode.DRIVING,
+        provideRouteAlternatives: provideAlternatives,
         drivingOptions: {
           departureTime: new Date(),
           trafficModel: google.maps.TrafficModel.BEST_GUESS
@@ -138,6 +140,87 @@ export const getRoute = async (
         } else {
           console.error('Error obteniendo ruta:', status);
           resolve(null);
+        }
+      }
+    );
+  });
+};
+
+/**
+ * Obtener múltiples rutas alternativas de Google Maps
+ */
+export const getRouteAlternatives = async (
+  start: { lat: number; lng: number },
+  end: { lat: number; lng: number }
+): Promise<RouteInfo[]> => {
+  return new Promise((resolve) => {
+    const directionsService = new google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin: start,
+        destination: end,
+        travelMode: google.maps.TravelMode.DRIVING,
+        provideRouteAlternatives: true,
+        drivingOptions: {
+          departureTime: new Date(),
+          trafficModel: google.maps.TrafficModel.BEST_GUESS
+        }
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result && result.routes.length > 0) {
+          const alternatives: RouteInfo[] = result.routes.map((route, index) => {
+            const leg = route.legs[0];
+            const path = route.overview_path.map(p => [p.lng(), p.lat()] as [number, number]);
+
+            const steps = leg.steps.map(step => {
+              // @ts-ignore
+              const trafficDur = step.duration_in_traffic?.value;
+              const normalDur = step.duration?.value || 0;
+
+              let trafficStatus: 'normal' | 'moderate' | 'heavy' | 'severe' = 'normal';
+              if (trafficDur) {
+                const ratio = trafficDur / normalDur;
+                if (ratio > 2.0) trafficStatus = 'severe';
+                else if (ratio > 1.5) trafficStatus = 'heavy';
+                else if (ratio > 1.2) trafficStatus = 'moderate';
+              }
+
+              // @ts-ignore
+              const stepPath = (step.lat_lngs || step.path || []).map((p: any) => ({
+                lat: typeof p.lat === 'function' ? p.lat() : p.lat,
+                lng: typeof p.lng === 'function' ? p.lng() : p.lng
+              }));
+
+              return {
+                instruction: step.instructions.replace(/<[^>]*>?/gm, ''),
+                distance: step.distance?.value || 0,
+                duration: step.duration?.value || 0,
+                name: '',
+                location: step.end_location ? {
+                  lat: step.end_location.lat(),
+                  lng: step.end_location.lng()
+                } : undefined,
+                path: stepPath,
+                traffic_status: trafficStatus
+              };
+            });
+
+            return {
+              distance: leg.distance?.value || 0,
+              duration: leg.duration?.value || 0,
+              duration_in_traffic: leg.duration_in_traffic?.value || leg.duration?.value || 0,
+              coordinates: path,
+              steps: steps,
+              routeIndex: index,
+              summary: route.summary || `Ruta ${index + 1}`
+            };
+          });
+
+          resolve(alternatives);
+        } else {
+          console.error('Error obteniendo rutas alternativas:', status);
+          resolve([]);
         }
       }
     );

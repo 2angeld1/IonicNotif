@@ -27,6 +27,13 @@ export interface RouteInfo {
   coordinates: [number, number][]; // [lng, lat]
   steps?: RouteStep[];
   isEstimate?: boolean;
+  routeIndex?: number; // índice de la ruta alternativa
+  summary?: string; // nombre/descripción de la ruta (ej: "Por Vía España")
+  // Campos de predicción ML
+  predicted_duration?: number; // Tiempo predicho por la IA
+  ml_confidence?: number; // Confianza de la predicción (0-1)
+  ml_recommended?: boolean; // Si es la ruta recomendada por la IA
+  incidents_count?: number; // Número de incidentes en la ruta
 }
 
 export type FavoriteType = 'home' | 'work' | 'favorite' | 'other';

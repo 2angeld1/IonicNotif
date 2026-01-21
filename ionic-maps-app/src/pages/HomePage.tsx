@@ -60,6 +60,7 @@ const HomePage: React.FC = () => {
     startLocation: sLoc, setStartLocation: setSLoc,
     endLocation: eLoc, setEndLocation: setELoc,
     route: currentRoute, setRoute: setCurrentRoute,
+    alternativeRoutes, selectedRouteIndex, selectAlternativeRoute,
     isRouteMode: routeMode, setIsRouteMode: setRouteMode,
     isOffRoute: offRoute, isLoading: routeLoading,
     handleCalculateRoute: calcRoute, handleRecalculateRoute: recalcRoute
@@ -105,11 +106,11 @@ const HomePage: React.FC = () => {
     try {
       const success = await saveTrip(tripData);
       if (success) {
-        setToast({ show: true, message: 'Guardado. Entrenando IA...' });
+        setToast({ show: true, message: '🤖 Enseñando a Calitin...' });
         await trainModel();
         const status = await getModelStatus();
         setModelStatus(status);
-        setToast({ show: true, message: '✅ IA entrenada exitosamente' });
+        setToast({ show: true, message: '✨ ¡Calitin aprendió tu ruta!' });
       }
     } catch (error) {
       setToast({ show: true, message: 'Error al guardar' });
@@ -177,6 +178,9 @@ const HomePage: React.FC = () => {
                   startLocation={sLoc}
                   endLocation={eLoc}
                   route={currentRoute}
+                  alternativeRoutes={alternativeRoutes}
+                  selectedRouteIndex={selectedRouteIndex}
+                  onSelectRoute={selectAlternativeRoute}
                   isLoading={routeLoading}
                   onStartChange={(c, n) => { setSLoc({ coords: c, name: n }); setCurrentRoute(null); }}
                   onEndChange={(c, n) => { setELoc({ coords: c, name: n }); setCurrentRoute(null); }}
@@ -224,6 +228,9 @@ const HomePage: React.FC = () => {
               start={sLoc.coords}
               end={eLoc.coords}
               route={currentRoute}
+              alternativeRoutes={alternativeRoutes}
+              selectedRouteIndex={selectedRouteIndex}
+              onRouteClick={selectAlternativeRoute}
               incidents={incidents}
               favorites={favorites}
               userLocation={userLocation}

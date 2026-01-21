@@ -117,3 +117,70 @@ async def get_alternative_routes(request: RouteRequest):
         "alternatives": alternatives,
         "recommended_index": alternatives[0]["index"] if alternatives else 0
     }
+
+
+@router.post("/predict-external")
+async def predict_external_routes(request: dict):
+    """
+    Aplicar predicciones ML a rutas externas (ej: de Google Maps)
+    
+    Recibe una lista de rutas con distance y duration, y devuelve
+    predicciones ML para cada una, incluyendo confianza y factores.
+    """
+    routes = request.get("routes", [])
+    start = request.get("start", {})
+    
+    if not routes:
+        raise HTTPException(status_code=400, detail="No se proporcionaron rutas")
+    
+    # Obtener clima para la ubicación de inicio
+    weather = None
+    if start.get("lat") and start.get("lng"):
+        weather = await WeatherService.get_weather(start["lat"], start["lng"])
+    
+    predictions = []
+    
+    for i, route in enumerate(routes):
+        distance = route.get("distance", 0)
+        duration = route.get("duration", 0)
+        coordinates = route.get("coordinates", [])
+        
+        # Obtener incidencias en la ruta si hay coordenadas
+        incidents = []
+        if coordinates:
+            try:
+                incidents = await IncidentService.get_incidents_on_route(coordinates)
+            except Exception:
+                pass  # Si falla, continuamos sin incidencias
+        
+        incident_severities = [inc.severity.value for inc in incidents]
+        
+        # Predecir con ML
+        prediction = MLService.predict(
+            base_duration=duration,
+            distance=distance,
+            weather_condition=weather.condition.value if weather else "clear",
+            temperature=weather.temperature if weather else 25.0,
+            incident_count=len(incidents),
+            incident_severities=incident_severities
+        )
+        
+        predictions.append({
+            "index": i,
+            "original_duration": duration,
+            "predicted_duration": prediction.predicted_duration,
+            "confidence": prediction.confidence,
+            "factors": prediction.factors_applied,
+            "incidents_count": len(incidents),
+            "time_saved": duration - prediction.predicted_duration if prediction.predicted_duration < duration else 0
+        })
+    
+    # Ordenar por tiempo predicho para determinar recomendación
+    sorted_predictions = sorted(predictions, key=lambda x: x["predicted_duration"])
+    recommended_index = sorted_predictions[0]["index"] if sorted_predictions else 0
+    
+    return {
+        "weather": weather,
+        "predictions": predictions,
+        "recommended_index": recommended_index
+    }

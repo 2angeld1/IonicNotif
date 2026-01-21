@@ -163,6 +163,42 @@ export const getAlternativeRoutes = async (
   }
 };
 
+// Interfaz para predicciones de rutas externas
+export interface RoutePrediction {
+  index: number;
+  original_duration: number;
+  predicted_duration: number;
+  confidence: number;
+  factors: Record<string, number>;
+  incidents_count: number;
+  time_saved: number;
+}
+
+export interface PredictExternalResponse {
+  weather: WeatherInfo | null;
+  predictions: RoutePrediction[];
+  recommended_index: number;
+}
+
+/**
+ * Envía rutas de Google Maps al backend para obtener predicciones ML
+ */
+export const predictExternalRoutes = async (
+  start: LatLng,
+  routes: Array<{ distance: number; duration: number; coordinates: [number, number][] }>
+): Promise<PredictExternalResponse | null> => {
+  try {
+    const response = await api.post('/routes/predict-external', {
+      start,
+      routes
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo predicciones ML:', error);
+    return null;
+  }
+};
+
 // ============== INCIDENCIAS ==============
 export const createIncident = async (
   location: LatLng,

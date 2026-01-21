@@ -5,11 +5,15 @@ import {
   chevronForwardOutline, 
   chevronBackOutline,
   closeCircleOutline,
-  refreshOutline
+  refreshOutline,
+  volumeHighOutline,
+  volumeMediumOutline,
+  volumeMuteOutline
 } from 'ionicons/icons';
 import type { RouteStep, LatLng } from '../types';
 import { formatDistance, getManeuverIcon } from '../utils/geoUtils';
 import { useRouteStepProgress } from '../hooks/useRouteStepProgress';
+import { useVoiceMode, getVoiceModeLabel, type VoiceMode } from '../contexts/VoiceModeContext';
 
 interface NavigationPanelProps {
   steps: RouteStep[];
@@ -32,6 +36,17 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     goToNextStep,
     goToPreviousStep
   } = useRouteStepProgress(steps, userLocation);
+
+  // Control de modo de voz
+  const { voiceMode, cycleVoiceMode } = useVoiceMode();
+
+  const getVoiceIcon = (mode: VoiceMode) => {
+    switch (mode) {
+      case 'all': return volumeHighOutline;
+      case 'alerts': return volumeMediumOutline;
+      case 'mute': return volumeMuteOutline;
+    }
+  };
 
   const currentStep = steps[currentStepIndex];
   const nextStep = steps[currentStepIndex + 1];
@@ -73,12 +88,26 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               <span className="text-[9px] font-bold uppercase tracking-widest text-blue-100">
                 Paso {currentStepIndex + 1}/{steps.length}
               </span>
-              <button 
-                onClick={onClose}
-                className="p-0.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <IonIcon icon={closeCircleOutline} className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Botón de Control de Voz */}
+                <button
+                  onClick={cycleVoiceMode}
+                  className="p-1 hover:bg-white/20 rounded-full transition-colors flex items-center gap-1"
+                  title={getVoiceModeLabel(voiceMode)}
+                >
+                  <IonIcon icon={getVoiceIcon(voiceMode)} className="w-4 h-4" />
+                  <span className="text-[8px] font-medium">
+                    {voiceMode === 'all' ? 'Todo' : voiceMode === 'alerts' ? 'Alertas' : 'Mudo'}
+                  </span>
+                </button>
+                {/* Botón de Cerrar */}
+                <button
+                  onClick={onClose}
+                  className="p-0.5 hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <IonIcon icon={closeCircleOutline} className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <h2 className="text-sm font-bold leading-tight line-clamp-1">
               {currentStep.instruction}

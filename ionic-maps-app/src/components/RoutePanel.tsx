@@ -8,7 +8,11 @@ import {
   trashOutline,
   flagOutline,
   saveOutline,
-  carOutline
+  carOutline,
+  gitBranchOutline,
+  checkmarkCircle,
+  sparkles,
+  alertCircleOutline
 } from 'ionicons/icons';
 import type { RouteInfo, LatLng, FavoritePlace } from '../types';
 import LocationSearch from './LocationSearch';
@@ -18,6 +22,9 @@ interface RoutePanelProps {
   startLocation: { coords: LatLng | null; name: string };
   endLocation: { coords: LatLng | null; name: string };
   route: RouteInfo | null;
+  alternativeRoutes?: RouteInfo[];
+  selectedRouteIndex?: number;
+  onSelectRoute?: (index: number) => void;
   isLoading: boolean;
   onStartChange: (coords: LatLng, name: string) => void;
   onEndChange: (coords: LatLng, name: string) => void;
@@ -42,6 +49,9 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
   startLocation,
   endLocation,
   route,
+  alternativeRoutes = [],
+  selectedRouteIndex = 0,
+  onSelectRoute,
   isLoading,
   onStartChange,
   onEndChange,
@@ -168,6 +178,102 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   </div>
                 </div>
 
+                {/* Selector de Rutas Alternativas */}
+                {alternativeRoutes.length > 1 && onSelectRoute && (
+                  <div className="mt-3 bg-white rounded-lg p-2 border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <IonIcon icon={gitBranchOutline} className="w-4 h-4 text-indigo-600" />
+                        <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">
+                          {alternativeRoutes.length} rutas disponibles
+                        </span>
+                      </div>
+                      {alternativeRoutes.some(r => r.ml_recommended) && (
+                        <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                          <IonIcon icon={sparkles} className="w-3 h-3" />
+                          Calitin ✨
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {alternativeRoutes.map((altRoute, index) => (
+                        <button
+                          key={index}
+                          onClick={() => onSelectRoute(index)}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 ${selectedRouteIndex === index
+                            ? 'bg-indigo-100 border-2 border-indigo-400 shadow-sm'
+                            : altRoute.ml_recommended
+                              ? 'bg-purple-50 border border-purple-200 hover:bg-purple-100'
+                              : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {selectedRouteIndex === index ? (
+                              <IonIcon icon={checkmarkCircle} className="w-4 h-4 text-indigo-600" />
+                            ) : altRoute.ml_recommended ? (
+                              <IonIcon icon={sparkles} className="w-4 h-4 text-purple-500" />
+                            ) : null}
+                            <div className="text-left">
+                              <div className="flex items-center gap-1.5">
+                                <p className={`text-xs font-semibold ${selectedRouteIndex === index
+                                  ? 'text-indigo-700'
+                                  : altRoute.ml_recommended
+                                    ? 'text-purple-700'
+                                    : 'text-gray-700'
+                                  }`}>
+                                  {altRoute.summary || `Ruta ${index + 1}`}
+                                </p>
+                                {altRoute.ml_recommended && selectedRouteIndex !== index && (
+                                  <span className="bg-purple-200 text-purple-700 text-[8px] px-1.5 py-0.5 rounded-full font-bold">
+                                    🤖 Calitin
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] text-gray-500">
+                                  {formatDistance(altRoute.distance)}
+                                </span>
+                                {altRoute.incidents_count && altRoute.incidents_count > 0 && (
+                                  <span className="flex items-center gap-0.5 text-[9px] text-amber-600">
+                                    <IonIcon icon={alertCircleOutline} className="w-3 h-3" />
+                                    {altRoute.incidents_count} incid.
+                                  </span>
+                                )}
+                                {altRoute.ml_confidence && altRoute.ml_confidence > 0 && (
+                                  <span className="text-[9px] text-gray-400">
+                                    • {Math.round(altRoute.ml_confidence * 100)}% conf.
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className={`text-right ${selectedRouteIndex === index
+                            ? 'text-indigo-700'
+                            : altRoute.ml_recommended
+                              ? 'text-purple-700'
+                              : 'text-gray-600'
+                            }`}>
+                            {/* Mostrar tiempo predicho si está disponible */}
+                            {altRoute.predicted_duration && altRoute.predicted_duration !== altRoute.duration ? (
+                              <>
+                                <p className="text-xs font-bold">
+                                  {formatDuration(altRoute.predicted_duration)}
+                                </p>
+                                <p className="text-[9px] text-gray-400 line-through">
+                                  {formatDuration(altRoute.duration)}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-xs font-bold">
+                                {formatDuration(altRoute.duration_in_traffic || altRoute.duration)}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col gap-3 mt-4">
                   {/* Botón Modo Ruta */}
                   {onToggleRouteMode && (
@@ -203,7 +309,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                         ) : (
                           <>
                               <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
-                            <span className="font-semibold text-xs tracking-wider">GUARDAR Y ENTRENAR IA</span>
+                              <span className="font-semibold text-xs tracking-wider">ENSEÑAR A CALITIN 🤖</span>
                           </>
                         )}
                       </div>
@@ -224,7 +330,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${modelStatus.is_trained ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                     }`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${modelStatus.is_trained ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                    {modelStatus.is_trained ? 'IA Lista' : 'Entrenando'}
+                    {modelStatus.is_trained ? 'Calitin Lista 🤖' : 'Entrenando...'}
                   </div>
                 </div>
               </div>

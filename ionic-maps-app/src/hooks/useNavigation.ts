@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getRoute } from '../services/geocodingService';
+import { getRoute, getRouteAlternatives } from '../services/geocodingService';
+import { predictExternalRoutes } from '../services/apiService';
 import { sendNotification } from '../services/notificationService';
 import { calculateDistance, distanceToSegment } from '../utils/geoUtils';
+import { useVoiceMode } from '../contexts/VoiceModeContext';
 import type { LatLng, RouteInfo } from '../types';
 import type { Incident } from '../services/apiService';
 
@@ -12,13 +14,20 @@ export const useNavigation = (
   const [startLocation, setStartLocation] = useState<{ coords: LatLng | null; name: string }>({ coords: null, name: '' });
   const [endLocation, setEndLocation] = useState<{ coords: LatLng | null; name: string }>({ coords: null, name: '' });
   const [route, setRoute] = useState<RouteInfo | null>(null);
+  const [alternativeRoutes, setAlternativeRoutes] = useState<RouteInfo[]>([]);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [mlRecommendedIndex, setMlRecommendedIndex] = useState<number | null>(null);
   const [isRouteMode, setIsRouteMode] = useState(false);
   const [isOffRoute, setIsOffRoute] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Usar el contexto de voz centralizado
+  const { speak } = useVoiceMode();
+
   // Referencia para el debounce de fuera de ruta
   const offRouteCounterRef = useRef(0);
 
+  // Calcular rutas con alternativas y predicciones ML
   const handleCalculateRoute = useCallback(async (start?: LatLng, end?: LatLng) => {
     const s = start || startLocation.coords;
     const e = end || endLocation.coords;
@@ -26,17 +35,73 @@ export const useNavigation = (
 
     setIsLoading(true);
     try {
-      const result = await getRoute(s, e);
-      if (result) {
-        setRoute(result);
+      // 1. Obtener rutas alternativas de Google Maps
+      const alternatives = await getRouteAlternatives(s, e);
+
+      if (alternatives.length > 0) {
+        // 2. Enviar rutas al backend para predicciones ML
+        const mlPredictions = await predictExternalRoutes(
+          s,
+          alternatives.map(r => ({
+            distance: r.distance,
+            duration: r.duration,
+            coordinates: r.coordinates
+          }))
+        );
+
+        // 3. Combinar datos de Google con predicciones ML
+        const enrichedAlternatives: RouteInfo[] = alternatives.map((alt, idx) => {
+          const prediction = mlPredictions?.predictions.find(p => p.index === idx);
+          return {
+            ...alt,
+            predicted_duration: prediction?.predicted_duration || alt.duration,
+            ml_confidence: prediction?.confidence || 0,
+            ml_recommended: mlPredictions?.recommended_index === idx,
+            incidents_count: prediction?.incidents_count || 0
+          };
+        });
+
+        // 4. Ordenar por tiempo predicho por ML (si existe)
+        enrichedAlternatives.sort((a, b) =>
+          (a.predicted_duration || a.duration) - (b.predicted_duration || b.duration)
+        );
+
+        // Guardar índice recomendado por ML
+        const recommendedIdx = mlPredictions?.recommended_index ?? 0;
+        setMlRecommendedIndex(recommendedIdx);
+
+        setAlternativeRoutes(enrichedAlternatives);
+        setSelectedRouteIndex(0);
+        setRoute(enrichedAlternatives[0]); // Seleccionar la mejor según ML
         setIsOffRoute(false);
         offRouteCounterRef.current = 0;
+
+        return enrichedAlternatives[0];
+      } else {
+      // Fallback a ruta única si no hay alternativas
+        const result = await getRoute(s, e);
+        if (result) {
+          setRoute(result);
+          setAlternativeRoutes([result]);
+          setSelectedRouteIndex(0);
+          setMlRecommendedIndex(null);
+          setIsOffRoute(false);
+          offRouteCounterRef.current = 0;
+        }
+        return result;
       }
-      return result;
     } finally {
       setIsLoading(false);
     }
   }, [startLocation.coords, endLocation.coords]);
+
+  // Seleccionar una ruta alternativa
+  const selectAlternativeRoute = useCallback((index: number) => {
+    if (index >= 0 && index < alternativeRoutes.length) {
+      setSelectedRouteIndex(index);
+      setRoute(alternativeRoutes[index]);
+    }
+  }, [alternativeRoutes]);
 
   const handleRecalculateRoute = useCallback(async () => {
     if (userLocation && endLocation.coords) {
@@ -90,12 +155,9 @@ export const useNavigation = (
       offRouteCounterRef.current = 0; // Resetear contador
       setIsOffRoute(true); // Activa flag visual momentáneo
 
-      // Notificación de voz/sonido opcional
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('Recalculando ruta');
-        utterance.lang = 'es-ES';
-        window.speechSynthesis.speak(utterance);
-      }
+
+      // Notificación de voz (es una alerta importante)
+      speak('Recalculando ruta', true);
 
       sendNotification('Recalculando ruta...', {
         body: 'Te has desviado, buscando nueva ruta.',
@@ -164,6 +226,10 @@ export const useNavigation = (
     startLocation, setStartLocation,
     endLocation, setEndLocation,
     route, setRoute,
+    alternativeRoutes,
+    selectedRouteIndex,
+    mlRecommendedIndex,
+    selectAlternativeRoute,
     isRouteMode, setIsRouteMode,
     isOffRoute, setIsOffRoute,
     isLoading,

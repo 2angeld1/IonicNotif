@@ -5,8 +5,12 @@ import type { Incident } from '../services/apiService';
 import { useMapController } from '../hooks/useMapController';
 import { incidentIconConfig, favoriteIconConfig, mapConfig } from '../utils/mapConfigs';
 
-// Sub-componente para la Polilínea
-const Polyline = (props: { points: google.maps.LatLngLiteral[], options?: google.maps.PolylineOptions }) => {
+// Sub-componente para la Polilínea (con soporte para click)
+const Polyline = (props: {
+  points: google.maps.LatLngLiteral[],
+  options?: google.maps.PolylineOptions,
+  onClick?: () => void
+}) => {
   const map = useMap();
   const polylineRef = useRef<google.maps.Polyline | null>(null);
 
@@ -16,11 +20,21 @@ const Polyline = (props: { points: google.maps.LatLngLiteral[], options?: google
       ...props.options,
       path: props.points,
       map: map,
+      clickable: !!props.onClick
     });
+
+    // Agregar listener de click si existe
+    if (props.onClick) {
+      polylineRef.current.addListener('click', props.onClick);
+    }
+
     return () => {
-      if (polylineRef.current) polylineRef.current.setMap(null);
+      if (polylineRef.current) {
+        google.maps.event.clearInstanceListeners(polylineRef.current);
+        polylineRef.current.setMap(null);
+      }
     };
-  }, [map, props.points, props.options]);
+  }, [map, props.points, props.options, props.onClick]);
 
   return null;
 };
@@ -62,6 +76,9 @@ interface MapViewProps {
   start: LatLng | null;
   end: LatLng | null;
   route: RouteInfo | null;
+  alternativeRoutes?: RouteInfo[];
+  selectedRouteIndex?: number;
+  onRouteClick?: (index: number) => void;
   incidents?: Incident[];
   favorites?: FavoritePlace[];
   userLocation?: LatLng | null;
@@ -73,7 +90,9 @@ interface MapViewProps {
 }
 
 const MapView: React.FC<MapViewProps> = ({
-  start, end, route, incidents = [], favorites = [],
+  start, end, route,
+  alternativeRoutes = [], selectedRouteIndex = 0, onRouteClick,
+  incidents = [], favorites = [],
   userLocation, userHeading, isRouteMode,
   onMapClick, onIncidentClick, onFavoriteClick
 }) => {
@@ -119,7 +138,64 @@ const MapView: React.FC<MapViewProps> = ({
           <AdvancedMarker position={end}>{renderCustomMarker('#ef4444')}</AdvancedMarker>
         )}
 
-        {/* Polilíneas de Ruta con Estilo Waze Premium (Segmentadas por Tráfico) */}
+        {/* Rutas Alternativas (en gris, clickeables) */}
+        {alternativeRoutes.length > 1 && alternativeRoutes.map((altRoute, routeIdx) => {
+          // No renderizar la ruta seleccionada aquí, se renderiza aparte con más detalle
+          if (routeIdx === selectedRouteIndex) return null;
+
+          const points = altRoute.coordinates.map(([lng, lat]) => ({ lat, lng }));
+          if (points.length < 2) return null;
+
+          // Color diferente si es recomendada por IA
+          const routeColor = altRoute.ml_recommended ? '#9333ea' : '#6b7280'; // Púrpura para IA, gris para otras
+
+          return (
+            <React.Fragment key={`alt-${routeIdx}`}>
+              {/* Sombra de ruta alternativa */}
+              <Polyline
+                points={points}
+                options={{
+                  strokeColor: '#000000',
+                  strokeOpacity: 0.1,
+                  strokeWeight: 10,
+                  zIndex: 1
+                }}
+                onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
+              />
+              {/* Ruta alternativa */}
+              <Polyline
+                points={points}
+                options={{
+                  strokeColor: routeColor,
+                  strokeOpacity: altRoute.ml_recommended ? 0.7 : 0.4,
+                  strokeWeight: 6,
+                  zIndex: 2
+                }}
+                onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
+              />
+              {/* Línea de puntos si es recomendada */}
+              {altRoute.ml_recommended && (
+                <Polyline
+                  points={points}
+                  options={{
+                    strokeColor: '#c084fc',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 3,
+                    zIndex: 3,
+                    icons: [{
+                      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillColor: '#c084fc', fillOpacity: 1, strokeWeight: 0 },
+                      offset: '0',
+                      repeat: '20px'
+                    }]
+                  }}
+                  onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+
+        {/* Polilíneas de Ruta Principal con Estilo Waze Premium (Segmentadas por Tráfico) */}
         {route && route.steps && route.steps.length > 0 ? (
           // Renderizado por segmentos (Alta calidad + Tráfico)
           route.steps.map((step, idx) => {

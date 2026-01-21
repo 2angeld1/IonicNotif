@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { calculateDistance } from '../utils/geoUtils';
 import { sendNotification, requestNotificationPermission } from '../services/notificationService';
+import { useVoiceMode } from '../contexts/VoiceModeContext';
 import type { RouteStep, LatLng } from '../types';
 
 const STEP_COMPLETE_THRESHOLD = 35; // metros para considerar que pasaste el paso
@@ -10,6 +11,9 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [distanceToNextStep, setDistanceToNextStep] = useState<number | null>(null);
   const [isApproaching, setIsApproaching] = useState(false);
+
+  // Usar el contexto de voz centralizado
+  const { speak: contextSpeak } = useVoiceMode();
 
   // Referencias para evitar notificaciones duplicadas
   const notifiedStepsRef = useRef<Set<number>>(new Set());
@@ -39,16 +43,10 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
     lastDistanceRef.current = Infinity;
   }, [stepsKey]);
 
-  // Función de Texto a Voz
-  const speak = useCallback((text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
+  // Wrapper para speak: paso a paso NO es alerta
+  const speak = useCallback((text: string, isAlert: boolean = false) => {
+    contextSpeak(text, isAlert);
+  }, [contextSpeak]);
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -157,7 +155,7 @@ export const useRouteStepProgress = (steps: RouteStep[], userLocation: LatLng | 
             tag: 'nav-arrived',
             requireInteraction: true,
           });
-          speak('Has llegado a tu destino. Felicidades.');
+          speak('Has llegado a tu destino. Felicidades.', true); // true = es alerta
         }
       }
     }
