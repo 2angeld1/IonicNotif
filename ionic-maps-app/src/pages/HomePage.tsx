@@ -161,8 +161,8 @@ const HomePage: React.FC = () => {
           <IonModal
             isOpen={isRouteModalOpen}
             onDidDismiss={() => setIsRouteModalOpen(false)}
-            initialBreakpoint={0.65}
-            breakpoints={[0, 0.4, 0.65, 0.95]}
+            initialBreakpoint={1}
+            breakpoints={[0, 1]}
           >
             <div className="h-full bg-white flex flex-col">
               <div className="p-4 flex items-center justify-between border-b border-gray-100">
