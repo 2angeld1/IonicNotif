@@ -46,3 +46,9 @@ export interface FavoritePlace {
   address?: string;
   created_at: string;
 }
+
+export type VoiceMode = 'all' | 'alerts' | 'mute';
+
+export interface UserSettings {
+  voice_mode: VoiceMode;
+}

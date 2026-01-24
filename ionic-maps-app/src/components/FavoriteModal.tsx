@@ -85,19 +85,19 @@ const FavoriteModal: React.FC<FavoriteModalProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleTypeChange(item.id as FavoriteType)}
-                  className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all duration-200 ${
+                  className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all duration-200 shadow-sm ${
                     type === item.id 
-                      ? 'border-blue-500 bg-white shadow-md scale-[1.02]' 
-                      : 'border-transparent bg-gray-50'
+                    ? 'border-blue-500 bg-blue-50/50 scale-[1.02] ring-2 ring-blue-200 ring-offset-1'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${type === item.id ? item.bg : 'bg-white'} transition-colors`}>
+                  <div className={`p-2 rounded-xl shadow-sm ${type === item.id ? item.bg : 'bg-gray-100'} transition-colors duration-300`}>
                     <IonIcon 
                       icon={item.icon} 
                       className={`w-5 h-5 ${type === item.id ? 'text-white' : item.color}`} 
                     />
                   </div>
-                  <span className={`text-sm font-bold ${type === item.id ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className={`text-sm font-bold ${type === item.id ? 'text-gray-900' : 'text-gray-600'}`}>
                     {item.label}
                   </span>
                 </button>

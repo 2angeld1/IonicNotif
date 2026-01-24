@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { LatLng, RouteInfo, FavoritePlace, FavoriteType } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, FavoriteType, UserSettings } from '../types';
 
 // URL del backend FastAPI
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -63,6 +63,27 @@ export const deleteFavorite = async (id: string): Promise<boolean> => {
   } catch (error) {
     console.error('Error eliminando favorito:', error);
     return false;
+  }
+};
+
+// ============== CONFIGURACIÓN ==============
+export const getUserSettings = async (): Promise<UserSettings | null> => {
+  try {
+    const response = await api.get('/settings/');
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo configuración:', error);
+    return null;
+  }
+};
+
+export const saveUserSettings = async (settings: UserSettings): Promise<UserSettings | null> => {
+  try {
+    const response = await api.post('/settings/', settings);
+    return response.data;
+  } catch (error) {
+    console.error('Error guardando configuración:', error);
+    return null;
   }
 };
 

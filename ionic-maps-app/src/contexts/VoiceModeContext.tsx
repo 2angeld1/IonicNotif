@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { getUserSettings, saveUserSettings } from '../services/apiService';
+import type { VoiceMode } from '../types';
 
-export type VoiceMode = 'all' | 'alerts' | 'mute';
 
 interface VoiceModeContextType {
   voiceMode: VoiceMode;
@@ -16,11 +17,30 @@ const VOICE_MODES: VoiceMode[] = ['all', 'alerts', 'mute'];
 export const VoiceModeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('all');
 
+  // Cargar configuración al iniciar
+  useEffect(() => {
+    getUserSettings().then(settings => {
+      if (settings) {
+        console.log('🔊 Configuración de voz cargada:', settings.voice_mode);
+        setVoiceMode(settings.voice_mode);
+      }
+    });
+  }, []);
+
+  // Wrapper para actualizar y guardar
+  const handleSetVoiceMode = useCallback((mode: VoiceMode) => {
+    setVoiceMode(mode);
+    saveUserSettings({ voice_mode: mode });
+  }, []);
+
   const cycleVoiceMode = useCallback(() => {
     setVoiceMode(current => {
       const currentIndex = VOICE_MODES.indexOf(current);
       const nextIndex = (currentIndex + 1) % VOICE_MODES.length;
-      return VOICE_MODES[nextIndex];
+      const newMode = VOICE_MODES[nextIndex];
+      // Guardar en backend
+      saveUserSettings({ voice_mode: newMode });
+      return newMode;
     });
   }, []);
 
@@ -42,7 +62,7 @@ export const VoiceModeProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [voiceMode]);
 
   return (
-    <VoiceModeContext.Provider value={{ voiceMode, setVoiceMode, cycleVoiceMode, speak }}>
+    <VoiceModeContext.Provider value={{ voiceMode, setVoiceMode: handleSetVoiceMode, cycleVoiceMode, speak }}>
       {children}
     </VoiceModeContext.Provider>
   );

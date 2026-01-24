@@ -185,3 +185,15 @@ class FavoritePlace(BaseModel):
     
     class Config:
         populate_by_name = True
+
+
+# ============== CONFIGURACIÓN DE USUARIO ==============
+class VoiceMode(str, Enum):
+    ALL = "all"
+    ALERTS = "alerts"
+    MUTE = "mute"
+
+
+class UserSettings(BaseModel):
+    voice_mode: VoiceMode = VoiceMode.ALL
+
