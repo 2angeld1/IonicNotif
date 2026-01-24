@@ -75,3 +75,45 @@ export const stopBackgroundKeepAlive = () => {
     console.error(e);
   }
 };
+
+// ============== WAKE LOCK (MANTENER PANTALLA ENCENDIDA) ==============
+
+let wakeLock: any = null; // Usamos any para evitar problemas de tipado si Typescript no tiene WakeLockSentinel
+
+export const requestWakeLock = async () => {
+  // Solo intentar si el navegador lo soporta
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await (navigator as any).wakeLock.request('screen');
+      console.log('💡 Pantalla mantenida encendida (Wake Lock active)');
+
+      wakeLock.addEventListener('release', () => {
+        console.log('💡 Wake Lock liberado por el sistema');
+      });
+    } catch (err: any) {
+      console.warn(`⚠️ No se pudo activar Wake Lock: ${err.name}, ${err.message}`);
+    }
+  } else {
+    console.log('⚠️ Wake Lock API no soportada en este navegador');
+  }
+};
+
+export const releaseWakeLock = async () => {
+  if (wakeLock) {
+    try {
+      await wakeLock.release();
+      wakeLock = null;
+      console.log('💡 Pantalla liberada (Wake Lock released)');
+    } catch (err: any) {
+      console.error(`Error liberando Wake Lock: ${err.name}, ${err.message}`);
+    }
+  }
+};
+
+// Re-solicitar el bloqueo si la app vuelve a primer plano (visibilidad)
+document.addEventListener('visibilitychange', async () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    // Si teníamos un lock y volvemos a ser visibles, pedirlo de nuevo
+    await requestWakeLock();
+  }
+});

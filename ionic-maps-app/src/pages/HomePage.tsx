@@ -19,13 +19,22 @@ import { useNavigation } from '../hooks/useNavigation';
 // Services & Utils
 import { saveTrip, trainModel, getModelStatus, type TripData } from '../services/apiService';
 import { formatDistance, formatDuration } from '../utils/geoUtils';
-import { startBackgroundKeepAlive, stopBackgroundKeepAlive } from '../utils/backgroundService';
+import { startBackgroundKeepAlive, stopBackgroundKeepAlive, requestWakeLock, releaseWakeLock } from '../utils/backgroundService';
 import type { LatLng } from '../types';
 import type { Incident } from '../services/apiService';
 
 const HomePage: React.FC = () => {
   // Configuración base
   const defaultCenter = useMemo(() => ({ lat: 8.9824, lng: -79.5199 }), []);
+
+  // Mantener la pantalla encendida mientras se usa la app (Wake Lock)
+  useEffect(() => {
+    requestWakeLock();
+    // Limpieza al desmontar (o cerrar la pestaña/app)
+    return () => {
+      releaseWakeLock();
+    };
+  }, []);
 
   // UI State
   const [toast, setToast] = useState({ show: false, message: '' });
