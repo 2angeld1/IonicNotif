@@ -13,7 +13,8 @@ import {
 import type { RouteStep, LatLng } from '../types';
 import { formatDistance, getManeuverIcon } from '../utils/geoUtils';
 import { useRouteStepProgress } from '../hooks/useRouteStepProgress';
-import { useVoiceMode, getVoiceModeLabel, type VoiceMode } from '../contexts/VoiceModeContext';
+import { useVoiceMode, getVoiceModeLabel } from '../contexts/VoiceModeContext';
+import type { VoiceMode } from '../types';
 
 interface NavigationPanelProps {
   steps: RouteStep[];
