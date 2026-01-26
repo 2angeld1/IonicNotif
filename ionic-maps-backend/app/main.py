@@ -7,7 +7,8 @@ from app.services.ml_service import MLService
 from app.routers import routes, incidents, trips, weather, favorites, settings
 from app.config import get_settings
 
-settings = get_settings()
+settings_module = settings
+app_settings = get_settings()
 
 
 @asynccontextmanager
@@ -56,7 +57,7 @@ app.include_router(incidents.router)
 app.include_router(trips.router)
 app.include_router(weather.router)
 app.include_router(favorites.router)
-app.include_router(settings.router)
+app.include_router(settings_module.router)
 
 
 
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug
+        host=app_settings.host,
+        port=app_settings.port,
+        reload=app_settings.debug
     )
