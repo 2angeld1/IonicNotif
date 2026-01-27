@@ -8,7 +8,8 @@ export const useMapController = (
   route: RouteInfo | null,
   userLocation: LatLng | null | undefined,
   isRouteMode: boolean | undefined,
-  userHeading: number | null | undefined
+  userHeading: number | null | undefined,
+  recenterTrigger: number | undefined
 ) => {
   const map = useMap();
   const lastRouteMode = useRef(isRouteMode);
@@ -69,6 +70,15 @@ export const useMapController = (
     lastRouteMode.current = isRouteMode;
     lastRouteRef.current = route;
   }, [isRouteMode, userLocation, userHeading, map, route]);
+
+  // 3. Centrar manualmente al disparar el trigger
+  useEffect(() => {
+    if (map && userLocation && recenterTrigger && recenterTrigger > 0) {
+      map.panTo(userLocation);
+      // Opcionalmente ajustar el zoom
+      if (!isRouteMode) map.setZoom(17);
+    }
+  }, [recenterTrigger, map, userLocation, isRouteMode]);
 
   return map;
 };

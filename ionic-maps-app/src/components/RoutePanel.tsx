@@ -330,7 +330,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${modelStatus.is_trained ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                     }`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${modelStatus.is_trained ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                    {modelStatus.is_trained ? 'Calitin Lista 🤖' : 'Entrenando...'}
+                    {modelStatus.is_trained ? 'Calitin Listo 🤖' : 'Entrenando...'}
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { LatLng, RouteInfo, FavoritePlace, FavoriteType, UserSettings } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, FavoriteType, UserSettings, Convoy } from '../types';
 
 // URL del backend FastAPI
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -413,5 +413,45 @@ export const checkApiHealth = async (): Promise<boolean> => {
   } catch (error) {
     console.error('API no disponible:', error);
     return false;
+  }
+};
+// ============== CONVOY ==============
+export const createConvoy = async (hostName: string, location: LatLng): Promise<Convoy | null> => {
+  try {
+    const response = await api.post('/convoy/create', { host_name: hostName, start_location: location });
+    return response.data;
+  } catch (error) {
+    console.error('Error creando convoy:', error);
+    return null;
+  }
+};
+
+export const joinConvoy = async (code: string, userName: string, location: LatLng): Promise<{ convoy: Convoy; user_id: string } | null> => {
+  try {
+    const response = await api.post('/convoy/join', { convoy_code: code, user_name: userName, location });
+    return response.data;
+  } catch (error) {
+    console.error('Error uniendose al convoy:', error);
+    return null;
+  }
+};
+
+export const updateConvoyLocation = async (convoyId: string, userId: string, location: LatLng): Promise<Convoy | null> => {
+  try {
+    const response = await api.post(`/convoy/${convoyId}/update`, { user_id: userId, location });
+    return response.data;
+  } catch (error) {
+    // Silenciar error en log para no saturar si falla un update
+    return null;
+  }
+};
+
+export const getConvoyStatus = async (convoyId: string): Promise<Convoy | null> => {
+  try {
+    const response = await api.get(`/convoy/${convoyId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo estado del convoy:', error);
+    return null;
   }
 };

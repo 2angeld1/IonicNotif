@@ -53,7 +53,7 @@ const FavoriteModal: React.FC<FavoriteModalProps> = ({
     >
       <IonHeader className="ion-no-border">
         <IonToolbar>
-          <IonTitle>Guardar Lugar</IonTitle>
+          <IonTitle className="px-5">Guardar Lugar</IonTitle>
           <IonButton slot="end" fill="clear" onClick={onClose} color="medium">
             <IonIcon icon={closeOutline} />
           </IonButton>
@@ -80,24 +80,24 @@ const FavoriteModal: React.FC<FavoriteModalProps> = ({
                 { id: 'home', label: 'Casa', icon: homeOutline, color: 'text-blue-500', bg: 'bg-blue-500' },
                 { id: 'work', label: 'Trabajo', icon: briefcaseOutline, color: 'text-amber-500', bg: 'bg-amber-500' },
                 { id: 'favorite', label: 'Favorito', icon: starOutline, color: 'text-pink-500', bg: 'bg-pink-500' },
-                { id: 'other', label: 'Otro', icon: locationOutline, color: 'text-gray-500', bg: 'bg-gray-500' },
+                { id: 'other', label: 'Otro', icon: locationOutline, color: 'text-gray-700', bg: 'bg-gray-200' },
               ].map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleTypeChange(item.id as FavoriteType)}
                   className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all duration-200 shadow-sm ${
                     type === item.id 
-                    ? 'border-blue-500 bg-blue-50/50 scale-[1.02] ring-2 ring-blue-200 ring-offset-1'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                    ? '!border-blue-500 !bg-blue-50/50 scale-[1.02] ring-2 ring-blue-200 ring-offset-1'
+                    : '!border-gray-200 !bg-white hover:!border-gray-300 hover:!bg-gray-50'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl shadow-sm ${type === item.id ? item.bg : 'bg-gray-100'} transition-colors duration-300`}>
+                  <div className={`p-2 rounded-xl shadow-sm ${type === item.id ? `!${item.bg}` : '!bg-gray-100'} transition-colors duration-300`}>
                     <IonIcon 
                       icon={item.icon} 
-                      className={`w-5 h-5 ${type === item.id ? 'text-white' : item.color}`} 
+                      className={`w-5 h-5 ${type === item.id && item.id !== 'other' ? '!text-white' : `!${item.color}`}`} 
                     />
                   </div>
-                  <span className={`text-sm font-bold ${type === item.id ? 'text-gray-900' : 'text-gray-600'}`}>
+                  <span className={`text-sm font-bold ${type === item.id ? '!text-gray-900' : '!text-gray-600'}`}>
                     {item.label}
                   </span>
                 </button>
@@ -120,7 +120,7 @@ const FavoriteModal: React.FC<FavoriteModalProps> = ({
           <button 
             onClick={handleSave} 
             disabled={!name.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200 mt-2"
+            className="w-full !bg-blue-600 hover:!bg-blue-700 disabled:!bg-gray-300 !text-white font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200 mt-2"
           >
             Guardar en Favoritos
           </button>

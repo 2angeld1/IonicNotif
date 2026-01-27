@@ -4,10 +4,9 @@ from contextlib import asynccontextmanager
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.services.ml_service import MLService
-from app.routers import routes, incidents, trips, weather, favorites, settings
+from app.routers import routes, incidents, trips, weather, favorites, settings, convoy
 from app.config import get_settings
 
-settings_module = settings
 app_settings = get_settings()
 
 
@@ -52,12 +51,13 @@ app.add_middleware(
 )
 
 # Routers
-app.include_router(routes.router)
-app.include_router(incidents.router)
 app.include_router(trips.router)
 app.include_router(weather.router)
+app.include_router(routes.router)
+app.include_router(incidents.router)
 app.include_router(favorites.router)
-app.include_router(settings_module.router)
+app.include_router(settings.router)
+app.include_router(convoy.router)
 
 
 

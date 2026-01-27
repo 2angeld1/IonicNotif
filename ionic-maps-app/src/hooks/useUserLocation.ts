@@ -5,6 +5,7 @@ import { calculateRouteHeading, interpolatePosition, interpolateHeading } from '
 export const useUserLocation = (isRouteMode: boolean, route?: RouteInfo | null) => {
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [userHeading, setUserHeading] = useState<number | null>(null);
+  const [recenterTrigger, setRecenterTrigger] = useState(0);
 
   // Referencias para suavizado
   const smoothedPositionRef = useRef<LatLng | null>(null);
@@ -120,12 +121,8 @@ export const useUserLocation = (isRouteMode: boolean, route?: RouteInfo | null) 
   }, [isRouteMode]);
 
   const handleRecenter = () => {
-    if (userLocation) {
-      const coords = { ...userLocation };
-      setUserLocation(null);
-      setTimeout(() => setUserLocation(coords), 10);
-    }
+    setRecenterTrigger(prev => prev + 1);
   };
 
-  return { userLocation, userHeading, handleRecenter };
+  return { userLocation, userHeading, handleRecenter, recenterTrigger };
 };

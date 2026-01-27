@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import type { LatLng, RouteInfo, FavoritePlace } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, ConvoyMember } from '../types';
 import type { Incident } from '../services/apiService';
 import { useMapController } from '../hooks/useMapController';
 import { incidentIconConfig, favoriteIconConfig, mapConfig } from '../utils/mapConfigs';
@@ -68,7 +68,7 @@ const TrafficLayer = ({ visible }: { visible: boolean }) => {
 
 // Hook interno para centrar el mapa (usando el hook extraído)
 const MapInstanceController: React.FC<any> = (props) => {
-  useMapController(props.start, props.end, props.route, props.userLocation, props.isRouteMode, props.userHeading);
+  useMapController(props.start, props.end, props.route, props.userLocation, props.isRouteMode, props.userHeading, props.recenterTrigger);
   return null;
 };
 
@@ -81,19 +81,23 @@ interface MapViewProps {
   onRouteClick?: (index: number) => void;
   incidents?: Incident[];
   favorites?: FavoritePlace[];
+  convoyMembers?: ConvoyMember[]; // New prop
   userLocation?: LatLng | null;
   userHeading?: number | null;
+  recenterTrigger?: number;
+  mapTypeId?: string;
   isRouteMode?: boolean;
   onMapClick?: (location: LatLng) => void;
   onIncidentClick?: (incident: Incident) => void;
   onFavoriteClick?: (favorite: FavoritePlace) => void;
+  isConvoyActive?: boolean;
 }
 
 const MapView: React.FC<MapViewProps> = ({
   start, end, route,
   alternativeRoutes = [], selectedRouteIndex = 0, onRouteClick,
-  incidents = [], favorites = [],
-  userLocation, userHeading, isRouteMode,
+  incidents = [], favorites = [], convoyMembers = [],
+  userLocation, userHeading, recenterTrigger, mapTypeId = 'roadmap', isRouteMode, isConvoyActive,
   onMapClick, onIncidentClick, onFavoriteClick
 }) => {
   const routePositions = useMemo(() => {
@@ -110,6 +114,7 @@ const MapView: React.FC<MapViewProps> = ({
     <div className="w-full h-full relative touch-none">
       <Map
         mapId={mapConfig.mapId}
+        mapTypeId={mapTypeId}
         defaultCenter={mapConfig.defaultCenter}
         defaultZoom={mapConfig.defaultZoom}
         className="w-full h-full z-0"
@@ -124,7 +129,7 @@ const MapView: React.FC<MapViewProps> = ({
         <MapInstanceController
           start={start} end={end} route={route}
           userLocation={userLocation} isRouteMode={isRouteMode}
-          userHeading={userHeading}
+          userHeading={userHeading} recenterTrigger={recenterTrigger}
         />
 
         {/* Capa de Tráfico - visible cuando hay ruta */}
@@ -140,96 +145,41 @@ const MapView: React.FC<MapViewProps> = ({
 
         {/* Rutas Alternativas (en gris, clickeables) */}
         {alternativeRoutes.length > 1 && alternativeRoutes.map((altRoute, routeIdx) => {
-          // No renderizar la ruta seleccionada aquí, se renderiza aparte con más detalle
+          // ... (omitted same as before)
           if (routeIdx === selectedRouteIndex) return null;
-
           const points = altRoute.coordinates.map(([lng, lat]) => ({ lat, lng }));
           if (points.length < 2) return null;
-
-          // Color diferente si es recomendada por IA
-          const routeColor = altRoute.ml_recommended ? '#9333ea' : '#6b7280'; // Púrpura para IA, gris para otras
-
+          const routeColor = altRoute.ml_recommended ? '#9333ea' : '#6b7280';
           return (
             <React.Fragment key={`alt-${routeIdx}`}>
-              {/* Sombra de ruta alternativa */}
-              <Polyline
-                points={points}
-                options={{
-                  strokeColor: '#000000',
-                  strokeOpacity: 0.1,
-                  strokeWeight: 10,
-                  zIndex: 1
-                }}
-                onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
-              />
-              {/* Ruta alternativa */}
-              <Polyline
-                points={points}
-                options={{
-                  strokeColor: routeColor,
-                  strokeOpacity: altRoute.ml_recommended ? 0.7 : 0.4,
-                  strokeWeight: 6,
-                  zIndex: 2
-                }}
-                onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
-              />
-              {/* Línea de puntos si es recomendada */}
+              <Polyline points={points} options={{ strokeColor: '#000000', strokeOpacity: 0.1, strokeWeight: 10, zIndex: 1 }} onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined} />
+              <Polyline points={points} options={{ strokeColor: routeColor, strokeOpacity: altRoute.ml_recommended ? 0.7 : 0.4, strokeWeight: 6, zIndex: 2 }} onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined} />
               {altRoute.ml_recommended && (
-                <Polyline
-                  points={points}
-                  options={{
-                    strokeColor: '#c084fc',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 3,
-                    zIndex: 3,
-                    icons: [{
-                      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillColor: '#c084fc', fillOpacity: 1, strokeWeight: 0 },
-                      offset: '0',
-                      repeat: '20px'
-                    }]
-                  }}
-                  onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined}
-                />
+                <Polyline points={points} options={{ strokeColor: '#c084fc', strokeOpacity: 0.8, strokeWeight: 3, zIndex: 3, icons: [{ icon: { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillColor: '#c084fc', fillOpacity: 1, strokeWeight: 0 }, offset: '0', repeat: '20px' }] }} onClick={onRouteClick ? () => onRouteClick(routeIdx) : undefined} />
               )}
             </React.Fragment>
           );
         })}
 
-        {/* Polilíneas de Ruta Principal con Estilo Waze Premium (Segmentadas por Tráfico) */}
+        {/* Polilíneas de Ruta Principal */}
         {route && route.steps && route.steps.length > 0 ? (
-          // Renderizado por segmentos (Alta calidad + Tráfico)
           route.steps.map((step, idx) => {
             if (!step.path || step.path.length < 2) return null;
-
-            // Definir calor del borde según tráfico
-            let borderColor = '#151b54'; // Azul media noche (Default)
-            if (step.traffic_status === 'severe') borderColor = '#b91c1c'; // Rojo oscuro
-            else if (step.traffic_status === 'heavy') borderColor = '#c2410c'; // Naranja oscuro
-            else if (step.traffic_status === 'moderate') borderColor = '#ca8a04'; // Amarillo oscuro
+            let borderColor = '#151b54';
+            if (step.traffic_status === 'severe') borderColor = '#b91c1c';
+            else if (step.traffic_status === 'heavy') borderColor = '#c2410c';
+            else if (step.traffic_status === 'moderate') borderColor = '#ca8a04';
 
             return (
               <React.Fragment key={idx}>
-                {/* 1. Sombra */}
-                <Polyline
-                  points={step.path}
-                  options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }}
-                />
-                {/* 2. Borde (Color dinámico por tráfico) */}
-                <Polyline
-                  points={step.path}
-                  options={{ strokeColor: borderColor, strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }}
-                />
-                {/* 3. Ruta (Siempre azul brillante) */}
-                <Polyline
-                  points={step.path}
-                  options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }}
-                />
+                <Polyline points={step.path} options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }} />
+                <Polyline points={step.path} options={{ strokeColor: borderColor, strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }} />
+                <Polyline points={step.path} options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }} />
               </React.Fragment>
             );
           })
         ) : (
-          // Fallback: Renderizado simple si no hay steps detallados
-          routePositions.length > 1 && (
+            routePositions.length > 1 && (
             <>
                 <Polyline points={routePositions} options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }} />
                 <Polyline points={routePositions} options={{ strokeColor: '#151b54', strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }} />
@@ -242,15 +192,8 @@ const MapView: React.FC<MapViewProps> = ({
         {incidents.map((incident, idx) => {
           const config = incidentIconConfig[incident.type] || incidentIconConfig.other;
           return (
-            <AdvancedMarker
-              key={incident.id || idx}
-              position={incident.location}
-              onClick={() => onIncidentClick?.(incident)}
-            >
-              <div
-                className="w-8 h-8 rounded-full border-[3px] border-white shadow-md flex items-center justify-center text-sm"
-                style={{ backgroundColor: config.color }}
-              >
+            <AdvancedMarker key={incident.id || idx} position={incident.location} onClick={() => onIncidentClick?.(incident)}>
+              <div className="w-8 h-8 rounded-full border-[3px] border-white shadow-md flex items-center justify-center text-sm" style={{ backgroundColor: config.color }}>
                 {config.emoji}
               </div>
             </AdvancedMarker>
@@ -262,27 +205,34 @@ const MapView: React.FC<MapViewProps> = ({
           const config = favoriteIconConfig[fav.type] || favoriteIconConfig.other;
           return (
             <AdvancedMarker key={fav.id} position={fav.location} onClick={() => onFavoriteClick?.(fav)}>
-              <div
-                className="w-8 h-8 rounded-xl border-[3px] border-white shadow-md flex items-center justify-center text-sm"
-                style={{ backgroundColor: config.color }}
-              >
+              <div className="w-8 h-8 rounded-xl border-[3px] border-white shadow-md flex items-center justify-center text-sm" style={{ backgroundColor: config.color }}>
                 {config.emoji}
               </div>
             </AdvancedMarker>
           );
         })}
 
-        {/* Ubicación del Usuario con Flecha de Navegación */}
+        {/* MIEMBROS DEL CONVOY (NUEVO) */}
+        {convoyMembers.map((member) => (
+          member.location && (
+            <AdvancedMarker key={member.user_id} position={member.location} zIndex={900}>
+              <div className="flex flex-col items-center">
+                <div className="bg-white px-2 py-0.5 rounded-full shadow-md mb-1 border border-blue-100">
+                  <p className="text-[10px] font-bold text-gray-800 whitespace-nowrap">{member.name}</p>
+                </div>
+                <div className="w-8 h-8 bg-blue-500 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white text-xs font-bold">
+                  {member.name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            </AdvancedMarker>
+          )
+        ))}
+
+        {/* Ubicación del Usuario */}
         {userLocation && (
           <AdvancedMarker position={userLocation} zIndex={1000}>
             {isRouteMode ? (
-              // En modo navegación: puntero fijo hacia arriba (la cámara rota, no el puntero)
-              <div
-                className="w-14 h-14 flex items-center justify-center"
-                style={{
-                  filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))',
-                }}
-              >
+              <div className="w-14 h-14 flex items-center justify-center" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))' }}>
                 <svg viewBox="0 0 24 24" className="w-full h-full">
                   <defs>
                     <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -291,24 +241,26 @@ const MapView: React.FC<MapViewProps> = ({
                     </linearGradient>
                     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
                       <feGaussianBlur stdDeviation="1" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
+                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                     </filter>
                   </defs>
-                  {/* Flecha apuntando siempre hacia arriba */}
-                  <path
-                    d="M12 2L4 20l8-5 8 5L12 2z"
-                    fill="url(#navGradient)"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                    filter="url(#glow)"
-                  />
+                  <path d="M12 2L4 20l8-5 8 5L12 2z" fill="url(#navGradient)" stroke="white" strokeWidth="2" strokeLinejoin="round" filter="url(#glow)" />
                   <circle cx="12" cy="13" r="3" fill="white" />
                   <circle cx="12" cy="13" r="2" fill="#4285F4" />
                 </svg>
+              </div>
+            ) : isConvoyActive ? (
+              // Marcador personalizado para Modo Convoy (Soy yo)
+              <div className="flex flex-col items-center">
+                <div className="bg-indigo-600 px-2 py-0.5 rounded-full shadow-md mb-1 border border-indigo-200">
+                  <p className="text-[10px] font-bold text-white whitespace-nowrap">TÚ</p>
+                </div>
+                <div className="relative w-8 h-8">
+                  <div className="absolute inset-0 bg-indigo-500/50 rounded-full animate-ping-slow"></div>
+                  <div className="absolute inset-0 bg-indigo-500 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white text-xs font-bold z-10">
+                    You
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="relative w-6 h-6">
@@ -319,7 +271,6 @@ const MapView: React.FC<MapViewProps> = ({
           </AdvancedMarker>
         )}
       </Map>
-
       <style>{`
         @keyframes ping-slow {
           0% { transform: scale(1); opacity: 1; }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { IonPage, IonContent, IonToast, IonIcon, IonModal, IonActionSheet } from '@ionic/react';
-import { warningOutline, locationOutline, searchOutline, navigateOutline } from 'ionicons/icons';
+import { warningOutline, locationOutline, searchOutline, navigateOutline, layersOutline, mapOutline, earthOutline, globeOutline, imagesOutline, carSportOutline } from 'ionicons/icons';
 
 // Components
 import MapView from '../components/MapView';
@@ -10,11 +10,13 @@ import WeatherBadge from '../components/WeatherBadge';
 import IncidentCard from '../components/IncidentCard';
 import NavigationPanel from '../components/NavigationPanel';
 import FavoriteModal from '../components/FavoriteModal';
+import ConvoyModal from '../components/ConvoyModal';
 
 // Hooks
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useAppData } from '../hooks/useAppData';
 import { useNavigation } from '../hooks/useNavigation';
+import { useConvoy } from '../contexts/ConvoyContext';
 
 // Services & Utils
 import { saveTrip, trainModel, getModelStatus, type TripData } from '../services/apiService';
@@ -41,6 +43,8 @@ const HomePage: React.FC = () => {
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [isMapTypeActionSheetOpen, setIsMapTypeActionSheetOpen] = useState(false);
+  const [mapType, setMapType] = useState('roadmap');
   const [incidentLocation, setIncidentLocation] = useState<LatLng | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [favoriteLocation, setFavoriteLocation] = useState<LatLng | null>(null);
@@ -55,12 +59,16 @@ const HomePage: React.FC = () => {
     handleDismissIncident, setModelStatus, refreshIncidents
   } = useAppData(defaultCenter);
 
+  // Convoy Hooks
+  const { convoy, updateLocation: updateConvoyLocation, userId } = useConvoy();
+  const [isConvoyModalOpen, setIsConvoyModalOpen] = useState(false);
+
   // Navigation state primero para tener acceso a la ruta
   const [internalRouteMode, setInternalRouteMode] = useState(false);
   const [internalRoute, setInternalRoute] = useState<import('../types').RouteInfo | null>(null);
 
   // Ubicación con suavizado y heading basado en ruta
-  const { userLocation, userHeading, handleRecenter } = useUserLocation(internalRouteMode, internalRoute);
+  const { userLocation, userHeading, handleRecenter, recenterTrigger } = useUserLocation(internalRouteMode, internalRoute);
 
   // Luego la navegación que usa la ubicación
   const navigation = useNavigation(userLocation, incidents);
@@ -80,6 +88,14 @@ const HomePage: React.FC = () => {
     setInternalRouteMode(routeMode);
     setInternalRoute(currentRoute);
   }, [routeMode, currentRoute]);
+
+  // Convoy Location Sync
+  useEffect(() => {
+    if (userLocation && convoy) {
+      updateConvoyLocation(userLocation);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation, updateConvoyLocation]);
 
   // Handlers locales para UI
   const onCalculateRoute = async () => {
@@ -244,16 +260,28 @@ const HomePage: React.FC = () => {
               favorites={favorites}
               userLocation={userLocation}
               userHeading={userHeading}
+              recenterTrigger={recenterTrigger}
+              mapTypeId={mapType}
               isRouteMode={routeMode}
               onMapClick={onMapClick}
               onIncidentClick={setSelectedIncident}
               onFavoriteClick={(fav) => { setELoc({ coords: fav.location, name: fav.name }); setIsRouteModalOpen(true); }}
+              convoyMembers={convoy?.members.filter(m => m.user_id !== userId) || []}
+              isConvoyActive={!!convoy}
             />
           </div>
 
           {/* Botones Flotantes */}
           {!routeMode && (
             <div className="absolute bottom-24 left-4 z-[1000] flex flex-col gap-3 items-center">
+              <button
+                onClick={() => setIsMapTypeActionSheetOpen(true)}
+                className="w-14 h-14 bg-white shadow-lg text-gray-700 rounded-full flex items-center justify-center border border-gray-200"
+                style={{ borderRadius: '50%' }}
+              >
+                <IonIcon icon={layersOutline} className="text-2xl" />
+              </button>
+
               <button
                 onClick={() => setIsRouteModalOpen(true)}
                 className="w-14 h-14 bg-blue-600 shadow-lg text-white rounded-full flex items-center justify-center"
@@ -271,6 +299,16 @@ const HomePage: React.FC = () => {
                   <IonIcon icon={locationOutline} className="text-2xl" />
                 </button>
               )}
+
+              {/* Botón Convoy (Nuevo) */}
+              <button
+                onClick={() => setIsConvoyModalOpen(true)}
+                className={`w-14 h-14 shadow-lg rounded-full flex items-center justify-center border border-gray-200 transition-all ${convoy ? 'bg-indigo-600 text-white animate-pulse' : 'bg-white text-indigo-600'
+                  }`}
+                style={{ borderRadius: '50%' }}
+              >
+                <IonIcon icon={carSportOutline} className="text-2xl" />
+              </button>
 
               {apiAvailable && (
                 <button
@@ -317,6 +355,12 @@ const HomePage: React.FC = () => {
             }}
           />
 
+          <ConvoyModal
+            isOpen={isConvoyModalOpen}
+            onClose={() => setIsConvoyModalOpen(false)}
+            userLocation={userLocation}
+          />
+
           <IncidentModal
             isOpen={isIncidentModalOpen}
             location={incidentLocation}
@@ -344,6 +388,38 @@ const HomePage: React.FC = () => {
               {
                 text: '⚠️ Reportar Incidencia',
                 handler: () => handleMapActionSelect('incident')
+              },
+              {
+                text: 'Cancelar',
+                role: 'cancel'
+              }
+            ]}
+          />
+
+          <IonActionSheet
+            isOpen={isMapTypeActionSheetOpen}
+            onDidDismiss={() => setIsMapTypeActionSheetOpen(false)}
+            header="Tipo de Mapa"
+            buttons={[
+              {
+                text: 'Normal',
+                icon: mapOutline,
+                handler: () => setMapType('roadmap')
+              },
+              {
+                text: 'Satélite',
+                icon: earthOutline,
+                handler: () => setMapType('satellite')
+              },
+              {
+                text: 'Relieve / Terreno',
+                icon: globeOutline,
+                handler: () => setMapType('terrain')
+              },
+              {
+                text: 'Híbrido',
+                icon: imagesOutline,
+                handler: () => setMapType('hybrid')
               },
               {
                 text: 'Cancelar',

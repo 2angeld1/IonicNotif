@@ -2,8 +2,6 @@ import React from 'react';
 import { IonIcon } from '@ionic/react';
 import { 
   locationOutline, 
-  chevronForwardOutline, 
-  chevronBackOutline,
   closeCircleOutline,
   refreshOutline,
   volumeHighOutline,
@@ -33,9 +31,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 }) => {
   const {
     currentStepIndex,
-    distanceToNextStep,
-    goToNextStep,
-    goToPreviousStep
+    distanceToNextStep
   } = useRouteStepProgress(steps, userLocation);
 
   // Control de modo de voz
@@ -142,28 +138,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           </div>
         )}
 
-        {/* Controles de Navegación - Compactos */}
-        <div className="bg-blue-700/50 flex border-t border-blue-400/30">
-          <button
-            disabled={currentStepIndex === 0}
-            onClick={goToPreviousStep}
-            className="flex-1 py-2 flex items-center justify-center gap-1.5 hover:bg-white/10 disabled:opacity-30 transition-all active:scale-95"
-          >
-            <IonIcon icon={chevronBackOutline} className="w-3.5 h-3.5" />
-            <span className="text-xs font-bold">Anterior</span>
-          </button>
-          
-          <div className="w-[1px] bg-blue-400/30" />
-          
-          <button
-            disabled={currentStepIndex === steps.length - 1}
-            onClick={goToNextStep}
-            className="flex-1 py-2 flex items-center justify-center gap-1.5 hover:bg-white/10 disabled:opacity-30 transition-all active:scale-95 text-blue-50"
-          >
-            <span className="text-xs font-bold">Siguiente</span>
-            <IonIcon icon={chevronForwardOutline} className="w-3.5 h-3.5" />
-          </button>
-        </div>
+
       </div>
 
       <style>{`

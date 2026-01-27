@@ -197,3 +197,45 @@ class VoiceMode(str, Enum):
 class UserSettings(BaseModel):
     voice_mode: VoiceMode = VoiceMode.ALL
 
+
+# ============== CONVOY (VIAJE EN GRUPO) ==============
+class ConvoyMemberStatus(str, Enum):
+    ONLINE = "online"
+    OFFLINE = "offline"
+
+
+class ConvoyMember(BaseModel):
+    user_id: str
+    name: str
+    location: LatLng
+    last_update: datetime
+    status: ConvoyMemberStatus = ConvoyMemberStatus.ONLINE
+
+
+class ConvoyCreate(BaseModel):
+    host_name: str
+    start_location: LatLng
+
+
+class ConvoyJoin(BaseModel):
+    convoy_code: str
+    user_name: str
+    location: LatLng
+
+
+class ConvoyUpdate(BaseModel):
+    user_id: str
+    location: LatLng
+
+
+class Convoy(BaseModel):
+    id: str = Field(alias="_id")
+    code: str  # Código corto de 4-6 caracteres
+    host_id: str
+    created_at: datetime
+    is_active: bool = True
+    members: List[ConvoyMember] = []
+
+    class Config:
+        populate_by_name = True
+

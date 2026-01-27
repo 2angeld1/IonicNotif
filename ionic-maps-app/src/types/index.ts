@@ -52,3 +52,23 @@ export type VoiceMode = 'all' | 'alerts' | 'mute';
 export interface UserSettings {
   voice_mode: VoiceMode;
 }
+
+// Convoy Types
+export type ConvoyMemberStatus = 'online' | 'offline';
+
+export interface ConvoyMember {
+  user_id: string;
+  name: string;
+  location: LatLng;
+  last_update: string;
+  status: ConvoyMemberStatus;
+}
+
+export interface Convoy {
+  _id: string;
+  code: string;
+  host_id: string;
+  created_at: string;
+  is_active: boolean;
+  members: ConvoyMember[];
+}
