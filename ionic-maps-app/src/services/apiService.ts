@@ -455,3 +455,27 @@ export const getConvoyStatus = async (convoyId: string): Promise<Convoy | null> 
     return null;
   }
 };
+
+// ============== AGENT (AI Chat) ==============
+export interface AgentResponse {
+  intent: string;
+  message: string;
+  data: any;
+}
+
+export const parseAgentMessage = async (
+  text: string,
+  userLocation: LatLng | null
+): Promise<AgentResponse | null> => {
+  try {
+    const latLng = userLocation ? [userLocation.lat, userLocation.lng] : null;
+    const response = await api.post('/agent/parse', {
+      text,
+      user_location: latLng
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error parseando mensaje de agente:', error);
+    return null;
+  }
+};

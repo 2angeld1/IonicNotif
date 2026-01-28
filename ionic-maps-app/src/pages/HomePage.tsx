@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { IonPage, IonContent, IonToast, IonIcon, IonModal, IonActionSheet } from '@ionic/react';
-import { warningOutline, locationOutline, searchOutline, navigateOutline, layersOutline, mapOutline, earthOutline, globeOutline, imagesOutline, carSportOutline } from 'ionicons/icons';
+import { IonPage, IonContent, IonToast, IonIcon, IonModal } from '@ionic/react';
+import { navigateOutline, locationOutline } from 'ionicons/icons';
 
 // Components
 import MapView from '../components/MapView';
@@ -11,6 +11,10 @@ import IncidentCard from '../components/IncidentCard';
 import NavigationPanel from '../components/NavigationPanel';
 import FavoriteModal from '../components/FavoriteModal';
 import ConvoyModal from '../components/ConvoyModal';
+import AIChatModal from '../components/AIChatModal';
+import HomeFloatingButtons from '../components/HomeFloatingButtons';
+import HomeActionSheets from '../components/HomeActionSheets';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 // Hooks
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -62,6 +66,7 @@ const HomePage: React.FC = () => {
   // Convoy Hooks
   const { convoy, updateLocation: updateConvoyLocation, userId } = useConvoy();
   const [isConvoyModalOpen, setIsConvoyModalOpen] = useState(false);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
 
   // Navigation state primero para tener acceso a la ruta
   const [internalRouteMode, setInternalRouteMode] = useState(false);
@@ -271,65 +276,23 @@ const HomePage: React.FC = () => {
             />
           </div>
 
-          {/* Botones Flotantes */}
+          {/* Botones Flotantes (Refactorizado) */}
           {!routeMode && (
-            <div className="absolute bottom-24 left-4 z-[1000] flex flex-col gap-3 items-center">
-              <button
-                onClick={() => setIsMapTypeActionSheetOpen(true)}
-                className="w-14 h-14 bg-white shadow-lg text-gray-700 rounded-full flex items-center justify-center border border-gray-200"
-                style={{ borderRadius: '50%' }}
-              >
-                <IonIcon icon={layersOutline} className="text-2xl" />
-              </button>
-
-              <button
-                onClick={() => setIsRouteModalOpen(true)}
-                className="w-14 h-14 bg-blue-600 shadow-lg text-white rounded-full flex items-center justify-center"
-                style={{ borderRadius: '50%' }}
-              >
-                <IonIcon icon={searchOutline} className="text-2xl" />
-              </button>
-
-              {userLocation && (
-                <button
-                  onClick={handleRecenter}
-                  className="w-14 h-14 bg-white shadow-lg text-blue-600 rounded-full flex items-center justify-center border border-gray-200"
-                  style={{ borderRadius: '50%' }}
-                >
-                  <IonIcon icon={locationOutline} className="text-2xl" />
-                </button>
-              )}
-
-              {/* Botón Convoy (Nuevo) */}
-              <button
-                onClick={() => setIsConvoyModalOpen(true)}
-                className={`w-14 h-14 shadow-lg rounded-full flex items-center justify-center border border-gray-200 transition-all ${convoy ? 'bg-indigo-600 text-white animate-pulse' : 'bg-white text-indigo-600'
-                  }`}
-                style={{ borderRadius: '50%' }}
-              >
-                <IonIcon icon={carSportOutline} className="text-2xl" />
-              </button>
-
-              {apiAvailable && (
-                <button
-                  onClick={() => { setIncidentLocation(sLoc.coords || defaultCenter); setIsIncidentModalOpen(true); }}
-                  className="w-14 h-14 bg-red-600 shadow-lg text-white rounded-full flex items-center justify-center"
-                  style={{ borderRadius: '50%' }}
-                >
-                  <IonIcon icon={warningOutline} className="text-2xl" />
-                </button>
-              )}
-            </div>
+            <HomeFloatingButtons
+              onOpenMapType={() => setIsMapTypeActionSheetOpen(true)}
+              onOpenRouteModal={() => setIsRouteModalOpen(true)}
+              onOpenConvoyModal={() => setIsConvoyModalOpen(true)}
+              onOpenIncidentModal={() => { setIncidentLocation(sLoc.coords || defaultCenter); setIsIncidentModalOpen(true); }}
+              onRecenter={handleRecenter}
+              onOpenAIChat={() => setIsAIChatOpen(true)}
+              hasUserLocation={!!userLocation}
+              isConvoyActive={!!convoy}
+              apiAvailable={apiAvailable}
+            />
           )}
 
-          {/* Overlay de Carga */}
-          {isBackendLoading && (
-            <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-white/80 backdrop-blur-xl text-center">
-              <div className="w-24 h-24 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <h2 className="mt-8 text-2xl font-bold text-gray-800">Ionic Notif</h2>
-              <p className="mt-2 text-gray-500 font-medium">{loadingMessage}</p>
-            </div>
-          )}
+          {/* Overlay de Carga (Refactorizado) */}
+          <LoadingOverlay isLoading={isBackendLoading} message={loadingMessage} />
 
           {/* Modales Adicionales */}
           {selectedIncident && (
@@ -361,6 +324,23 @@ const HomePage: React.FC = () => {
             userLocation={userLocation}
           />
 
+          <AIChatModal
+            isOpen={isAIChatOpen}
+            onClose={() => setIsAIChatOpen(false)}
+            userLocation={userLocation}
+            onNavigateTo={(dest) => {
+              if (!sLoc.coords && userLocation) {
+                setSLoc({ coords: userLocation, name: 'Tu Ubicación' });
+              }
+              setELoc({ coords: null, name: dest });
+              setIsRouteModalOpen(true);
+            }}
+            onSearchPlaces={(query) => {
+              setToast({ show: true, message: `🔍 Buscando: ${query}` });
+              // Aquí podríamos activar un modo de búsqueda en el mapa
+            }}
+          />
+
           <IncidentModal
             isOpen={isIncidentModalOpen}
             location={incidentLocation}
@@ -376,57 +356,16 @@ const HomePage: React.FC = () => {
             position="bottom"
           />
 
-          <IonActionSheet
-            isOpen={isMapActionSheetOpen}
-            onDidDismiss={() => { setIsMapActionSheetOpen(false); setMapClickLocation(null); }}
-            header="¿Qué deseas agregar?"
-            buttons={[
-              {
-                text: '⭐ Lugar Frecuente',
-                handler: () => handleMapActionSelect('favorite')
-              },
-              {
-                text: '⚠️ Reportar Incidencia',
-                handler: () => handleMapActionSelect('incident')
-              },
-              {
-                text: 'Cancelar',
-                role: 'cancel'
-              }
-            ]}
+          {/* Action Sheets (Refactorizado) */}
+          <HomeActionSheets
+            isMapActionSheetOpen={isMapActionSheetOpen}
+            onDismissMapActionSheet={() => { setIsMapActionSheetOpen(false); setMapClickLocation(null); }}
+            onMapActionSelect={handleMapActionSelect}
+            isMapTypeActionSheetOpen={isMapTypeActionSheetOpen}
+            onDismissMapTypeActionSheet={() => setIsMapTypeActionSheetOpen(false)}
+            onMapTypeSelect={(type) => setMapType(type)}
           />
 
-          <IonActionSheet
-            isOpen={isMapTypeActionSheetOpen}
-            onDidDismiss={() => setIsMapTypeActionSheetOpen(false)}
-            header="Tipo de Mapa"
-            buttons={[
-              {
-                text: 'Normal',
-                icon: mapOutline,
-                handler: () => setMapType('roadmap')
-              },
-              {
-                text: 'Satélite',
-                icon: earthOutline,
-                handler: () => setMapType('satellite')
-              },
-              {
-                text: 'Relieve / Terreno',
-                icon: globeOutline,
-                handler: () => setMapType('terrain')
-              },
-              {
-                text: 'Híbrido',
-                icon: imagesOutline,
-                handler: () => setMapType('hybrid')
-              },
-              {
-                text: 'Cancelar',
-                role: 'cancel'
-              }
-            ]}
-          />
         </div>
       </IonContent>
     </IonPage>

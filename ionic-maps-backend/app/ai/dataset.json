@@ -1,0 +1,23 @@
+[
+    {"text": "llévame a casa", "intent": "navigate"},
+    {"text": "quiero ir a albrook mall", "intent": "navigate"},
+    {"text": "ruta hacia costa del este", "intent": "navigate"},
+    {"text": "cómo llego a tocumen", "intent": "navigate"},
+    {"text": "ir a la playa", "intent": "navigate"},
+    {"text": "navegar al trabajo", "intent": "navigate"},
+    {"text": "dame indicaciones para el dorado", "intent": "navigate"},
+    
+    {"text": "tengo hambre", "intent": "search_places"},
+    {"text": "busca una gasolinera", "intent": "search_places"},
+    {"text": "dónde hay un restaurante cerca", "intent": "search_places"},
+    {"text": "quiero comer pollo", "intent": "search_places"},
+    {"text": "busca cajeros automáticos", "intent": "search_places"},
+    {"text": "necesito farmacia", "intent": "search_places"},
+    {"text": "hay algún supermercado por aquí", "intent": "search_places"},
+    
+    {"text": "hola calitin", "intent": "chat"},
+    {"text": "quién eres", "intent": "chat"},
+    {"text": "buenos días", "intent": "chat"},
+    {"text": "gracias", "intent": "chat"},
+    {"text": "qué puedes hacer", "intent": "chat"}
+]
