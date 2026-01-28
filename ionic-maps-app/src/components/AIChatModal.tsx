@@ -1,8 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { 
-  IonModal, IonContent, IonIcon 
+  IonModal, IonContent, IonIcon, IonHeader, IonFooter
 } from '@ionic/react';
-import { sendOutline, micOutline, closeOutline } from 'ionicons/icons';
+import { sendOutline, micOutline, closeOutline, sparklesOutline } from 'ionicons/icons';
 import { useAIChat } from '../hooks/useAIChat';
 
 interface AIChatModalProps {
@@ -10,7 +10,10 @@ interface AIChatModalProps {
   onClose: () => void;
   userLocation: { lat: number; lng: number } | null;
   onNavigateTo: (destination: string) => void;
-  onSearchPlaces: (query: string) => void;
+  onSearchPlaces: (query: string, count: number) => Promise<any[]>;
+  onReportIncident: (type: string) => void;
+  onCheckWeather: (location: string) => Promise<string>;
+  onPlaceDetails: (place: string) => Promise<string>;
 }
 
 const AIChatModal: React.FC<AIChatModalProps> = (props) => {
@@ -46,34 +49,30 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
   return (
     <IonModal 
         isOpen={isOpen} 
-        onDidDismiss={onClose} 
-        initialBreakpoint={0.6} 
-        breakpoints={[0, 0.6, 0.9]}
-        className="rounded-t-2xl"
+      onDidDismiss={onClose}
     >
-      <div className="flex flex-col h-full bg-gray-50">
-        {/* Header */}
-        <div className="bg-white p-4 flex items-center justify-between border-b border-gray-100 shadow-sm z-10">
+      <IonHeader className="ion-no-border">
+        <div className="bg-white p-4 flex items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-md animate-pulse-slow">
-              <span className="text-xl">🤖</span>
+            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-md">
+              <IonIcon icon={sparklesOutline} className="text-xl" />
             </div>
             <div>
-                <h2 className="font-bold text-gray-800">Calitin AI</h2>
-                <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-xs text-gray-500 font-medium">En línea</span>
-                </div>
+              <h2 className="font-bold text-gray-800">Calitin AI</h2>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span className="text-xs text-gray-500 font-medium">En línea</span>
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors">
             <IonIcon icon={closeOutline} />
           </button>
         </div>
+      </IonHeader>
 
-        {/* Chat Content */}
-        <IonContent ref={contentRef} className="bg-gray-50">
-           <div className="flex flex-col p-4 gap-4">
+      <IonContent ref={contentRef} className="ion-padding" style={{ '--background': '#f9fafb' } as React.CSSProperties}>
+        <div className="flex flex-col gap-4">
               {messages.map(msg => (
                   <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm text-sm font-medium leading-relaxed ${
@@ -83,15 +82,14 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
                       }`}>
                           {msg.text}
                       </div>
-                      
-                      {/* Acciones sugeridas */}
+
                       {msg.actions && msg.actions.length > 0 && (
-                          <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex flex-col gap-2">
                               {msg.actions.map((action, idx) => (
                                   <button 
                                     key={idx}
                                     onClick={action.action}
-                                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95 text-xs font-bold"
+                                  className="flex items-center gap-2 !bg-indigo-600 !text-white !px-4 !py-2 !rounded-xl !shadow-lg hover:!bg-indigo-700 !transition-all active:!scale-95 !text-xs !font-bold"
                                   >
                                       {action.icon && <IonIcon icon={action.icon} />}
                                       {action.label}
@@ -113,8 +111,8 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
            </div>
         </IonContent>
 
-        {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-100 pb-8">
+      <IonFooter className="ion-no-border">
+        <div className="p-3 bg-white border-t border-gray-100">
             <div className={`flex items-center gap-2 bg-gray-100 p-2 rounded-full border transition-all ${isListening ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'}`}>
                 <input 
                     ref={inputRef}
@@ -127,14 +125,13 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
                 />
                 
                 {inputText.trim() ? (
-                    <button onClick={handleSend} className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-blue-700 transition-colors">
+              <button onClick={handleSend} className="!w-10 !h-10 !bg-blue-600 !text-white !rounded-full !flex !items-center !justify-center !shadow-md hover:!bg-blue-700 !transition-colors">
                         <IonIcon icon={sendOutline} />
                     </button>
                 ) : (
                     <button 
                         onClick={handleMicClick}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                            isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                  className={`!w-10 !h-10 !rounded-full !flex !items-center !justify-center !transition-all ${isListening ? '!bg-red-500 !text-white !animate-pulse' : '!bg-gray-200 !text-gray-500 hover:!bg-gray-300'
                         }`}
                     >
                         <IonIcon icon={micOutline} />
@@ -142,7 +139,7 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
                 )}
             </div>
         </div>
-      </div>
+      </IonFooter>
     </IonModal>
   );
 };

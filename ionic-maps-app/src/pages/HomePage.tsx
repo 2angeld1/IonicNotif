@@ -21,12 +21,13 @@ import { useUserLocation } from '../hooks/useUserLocation';
 import { useAppData } from '../hooks/useAppData';
 import { useNavigation } from '../hooks/useNavigation';
 import { useConvoy } from '../contexts/ConvoyContext';
+import { useAIChatHandler } from '../hooks/useAIChatHandler';
 
 // Services & Utils
 import { saveTrip, trainModel, getModelStatus, type TripData } from '../services/apiService';
 import { formatDistance, formatDuration } from '../utils/geoUtils';
 import { startBackgroundKeepAlive, stopBackgroundKeepAlive, requestWakeLock, releaseWakeLock } from '../utils/backgroundService';
-import type { LatLng } from '../types';
+import type { LatLng, LocationSuggestion } from '../types';
 import type { Incident } from '../services/apiService';
 
 const HomePage: React.FC = () => {
@@ -55,12 +56,14 @@ const HomePage: React.FC = () => {
   const [isMapActionSheetOpen, setIsMapActionSheetOpen] = useState(false);
   const [mapClickLocation, setMapClickLocation] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchResults, setSearchResults] = useState<LocationSuggestion[]>([]);
 
   // Business Logic Hooks
   const {
     apiAvailable, isBackendLoading, loadingMessage, incidents, weather,
     favorites, modelStatus, handleCreateFavorite, handleConfirmIncident,
-    handleDismissIncident, setModelStatus, refreshIncidents
+    handleDismissIncident, setModelStatus, refreshIncidents, handleCreateIncident,
+    clearIncidents, handleSOS
   } = useAppData(defaultCenter);
 
   // Convoy Hooks
@@ -76,8 +79,6 @@ const HomePage: React.FC = () => {
   const { userLocation, userHeading, handleRecenter, recenterTrigger } = useUserLocation(internalRouteMode, internalRoute);
 
   // Luego la navegación que usa la ubicación
-  const navigation = useNavigation(userLocation, incidents);
-
   const {
     startLocation: sLoc, setStartLocation: setSLoc,
     endLocation: eLoc, setEndLocation: setELoc,
@@ -85,8 +86,9 @@ const HomePage: React.FC = () => {
     alternativeRoutes, selectedRouteIndex, selectAlternativeRoute,
     isRouteMode: routeMode, setIsRouteMode: setRouteMode,
     isOffRoute: offRoute, isLoading: routeLoading,
-    handleCalculateRoute: calcRoute, handleRecalculateRoute: recalcRoute
-  } = navigation;
+    handleCalculateRoute, handleRecalculateRoute,
+    setAlternativeRoutes, handleShareETA
+  } = useNavigation(userLocation, incidents);
 
   // Sincronizar ruta y modo para el hook de ubicación
   useEffect(() => {
@@ -101,10 +103,28 @@ const HomePage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation, updateConvoyLocation]);
+  // AI Chat Logic Handler
+  const {
+    handleAIChatNavigate,
+    handleAIChatSearch,
+    handleAIChatReportIncident,
+    handleAIChatCheckWeather,
+    handleAIChatPlaceDetails
+  } = useAIChatHandler({
+    userLocation,
+    sLoc,
+    setSLoc,
+    setELoc,
+    setIsRouteModalOpen,
+    favorites,
+    setSearchResults,
+    setToast,
+    handleCreateIncident
+  });
 
   // Handlers locales para UI
   const onCalculateRoute = async () => {
-    const result = await calcRoute();
+    const result = await handleCalculateRoute();
     if (result) {
       const dist = formatDistance(result.distance);
       const time = formatDuration(result.duration);
@@ -149,6 +169,18 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const onSOSClick = useCallback(async () => {
+    if (!userLocation) return;
+    setToast({ show: true, message: '🚨 ENVIANDO SOS...' });
+    await handleSOS(userLocation);
+    setToast({ show: true, message: '🚨 SOS ENVIADO A LA COMUNIDAD' });
+  }, [userLocation, handleSOS]);
+
+  const onShareETAClick = useCallback(() => {
+    const text = handleShareETA();
+    if (text) setToast({ show: true, message: '📋 ETA copiado al portapapeles' });
+  }, [handleShareETA]);
+
   const onMapClick = useCallback((location: LatLng) => {
     if (!apiAvailable) return;
     setMapClickLocation(location);
@@ -183,7 +215,7 @@ const HomePage: React.FC = () => {
                 setRouteMode(false);
                 stopBackgroundKeepAlive(); // Detener al cerrar
               }}
-              onRecalculateRoute={recalcRoute}
+              onRecalculateRoute={handleRecalculateRoute}
             />
           )}
 
@@ -220,7 +252,9 @@ const HomePage: React.FC = () => {
                     setSLoc({ coords: null, name: '' });
                     setELoc({ coords: null, name: '' });
                     setCurrentRoute(null);
+                    setAlternativeRoutes([]); // Limpiar rutas alternativas
                     setRouteMode(false);
+                    setSearchResults([]); // Limpiar resultados de búsqueda
                     stopBackgroundKeepAlive(); // Detener al limpiar
                   }}
                   onSaveTrip={handleSaveTripAction}
@@ -273,6 +307,16 @@ const HomePage: React.FC = () => {
               onFavoriteClick={(fav) => { setELoc({ coords: fav.location, name: fav.name }); setIsRouteModalOpen(true); }}
               convoyMembers={convoy?.members.filter(m => m.user_id !== userId) || []}
               isConvoyActive={!!convoy}
+              searchResults={searchResults}
+              onSearchResultClick={(result) => {
+                // Al hacer click en un pin de búsqueda:
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+                setELoc({ coords: { lat, lng }, name: result.display_name });
+                setIsRouteModalOpen(true);
+                // Opcional: limpiar búsqueda al seleccionar
+                // setSearchResults([]);
+              }}
             />
           </div>
 
@@ -288,6 +332,13 @@ const HomePage: React.FC = () => {
               hasUserLocation={!!userLocation}
               isConvoyActive={!!convoy}
               apiAvailable={apiAvailable}
+              onClearIncidents={() => {
+                clearIncidents();
+                setToast({ show: true, message: '👁️ Incidentes ocultos temporalmente' });
+              }}
+              onSOS={onSOSClick}
+              onShareETA={onShareETAClick}
+              hasRoute={!!currentRoute}
             />
           )}
 
@@ -328,17 +379,11 @@ const HomePage: React.FC = () => {
             isOpen={isAIChatOpen}
             onClose={() => setIsAIChatOpen(false)}
             userLocation={userLocation}
-            onNavigateTo={(dest) => {
-              if (!sLoc.coords && userLocation) {
-                setSLoc({ coords: userLocation, name: 'Tu Ubicación' });
-              }
-              setELoc({ coords: null, name: dest });
-              setIsRouteModalOpen(true);
-            }}
-            onSearchPlaces={(query) => {
-              setToast({ show: true, message: `🔍 Buscando: ${query}` });
-              // Aquí podríamos activar un modo de búsqueda en el mapa
-            }}
+            onNavigateTo={handleAIChatNavigate}
+            onSearchPlaces={handleAIChatSearch}
+            onReportIncident={handleAIChatReportIncident}
+            onCheckWeather={handleAIChatCheckWeather}
+            onPlaceDetails={handleAIChatPlaceDetails}
           />
 
           <IncidentModal

@@ -14,6 +14,122 @@
     {"text": "busca cajeros automáticos", "intent": "search_places"},
     {"text": "necesito farmacia", "intent": "search_places"},
     {"text": "hay algún supermercado por aquí", "intent": "search_places"},
+    {
+        "text": "buscame 3 restaurantes",
+        "intent": "search_places"
+    },
+    {
+        "text": "buscame farmacias cercanas",
+        "intent": "search_places"
+    },
+    {
+        "text": "buscame 5 pizzerías",
+        "intent": "search_places"
+    },
+    {
+        "text": "busca 2 hoteles",
+        "intent": "search_places"
+    },
+    {
+        "text": "buscame estaciones de servicio",
+        "intent": "search_places"
+    },
+    {
+        "text": "buscame comida mexicana",
+        "intent": "search_places"
+    },
+    {
+        "text": "encuertra 3 farmacias",
+        "intent": "search_places"
+    },
+    {
+        "text": "buscame lugares para comer",
+        "intent": "search_places"
+    },
+    {
+        "text": "hay un choque aquí",
+        "intent": "report_incident"
+    },
+    {
+        "text": "reporta un accidente",
+        "intent": "report_incident"
+    },
+    {
+        "text": "hay policía más adelante",
+        "intent": "report_incident"
+    },
+    {
+        "text": "policía en la vía",
+        "intent": "report_incident"
+    },
+    {
+        "text": "hueco en la calle",
+        "intent": "report_incident"
+    },
+    {
+        "text": "reportar tráfico pesado",
+        "intent": "report_incident"
+    },
+    {
+        "text": "carro detenido en el hombro",
+        "intent": "report_incident"
+    },
+    {
+        "text": "animal muerto en la vía",
+        "intent": "report_incident"
+    },
+    {
+        "text": "inundación en la calle",
+        "intent": "report_incident"
+    },
+    {
+        "text": "cómo está el clima en david",
+        "intent": "check_weather"
+    },
+    {
+        "text": "va a llover en panamá",
+        "intent": "check_weather"
+    },
+    {
+        "text": "temperatura en boquete",
+        "intent": "check_weather"
+    },
+    {
+        "text": "clima en colón",
+        "intent": "check_weather"
+    },
+    {
+        "text": "llueve en el trabajo",
+        "intent": "check_weather"
+    },
+    {
+        "text": "está lloviendo allá",
+        "intent": "check_weather"
+    },
+    {
+        "text": "está abierto mcdonalds",
+        "intent": "place_details"
+    },
+    {
+        "text": "a qué hora cierra el super 99",
+        "intent": "place_details"
+    },
+    {
+        "text": "qué tal es el restaurante napoli",
+        "intent": "place_details"
+    },
+    {
+        "text": "dame reseñas de cinepolis",
+        "intent": "place_details"
+    },
+    {
+        "text": "información de pricesmart",
+        "intent": "place_details"
+    },
+    {
+        "text": "cuándo abre la farmacia",
+        "intent": "place_details"
+    },
     
     {"text": "hola calitin", "intent": "chat"},
     {"text": "quién eres", "intent": "chat"},

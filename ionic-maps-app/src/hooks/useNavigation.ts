@@ -202,6 +202,15 @@ export const useNavigation = (
     }
   }, [userLocation, incidents, isRouteMode, endLocation.coords]);
 
+  // Copiar ETA al portapapeles
+  const handleShareETA = useCallback(() => {
+    if (!route) return null;
+    const min = Math.round(route.duration / 60);
+    const text = `Voy en camino. Llego en aprox ${min} minutos. 🚗`;
+    navigator.clipboard.writeText(text);
+    return text;
+  }, [route]);
+
   // Manejar mensajes del Service Worker
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -234,6 +243,8 @@ export const useNavigation = (
     isOffRoute, setIsOffRoute,
     isLoading,
     handleCalculateRoute,
-    handleRecalculateRoute
+    handleRecalculateRoute,
+    setAlternativeRoutes,
+    handleShareETA
   };
 };

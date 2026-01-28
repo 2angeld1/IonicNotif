@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import type { LatLng, RouteInfo, FavoritePlace, ConvoyMember } from '../types';
+import type { LatLng, RouteInfo, FavoritePlace, ConvoyMember, LocationSuggestion } from '../types';
 import type { Incident } from '../services/apiService';
 import { useMapController } from '../hooks/useMapController';
 import { incidentIconConfig, favoriteIconConfig, mapConfig } from '../utils/mapConfigs';
@@ -91,14 +91,16 @@ interface MapViewProps {
   onIncidentClick?: (incident: Incident) => void;
   onFavoriteClick?: (favorite: FavoritePlace) => void;
   isConvoyActive?: boolean;
+  searchResults?: LocationSuggestion[];
+  onSearchResultClick?: (result: LocationSuggestion) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
   start, end, route,
   alternativeRoutes = [], selectedRouteIndex = 0, onRouteClick,
-  incidents = [], favorites = [], convoyMembers = [],
+  incidents = [], favorites = [], convoyMembers = [], searchResults = [],
   userLocation, userHeading, recenterTrigger, mapTypeId = 'roadmap', isRouteMode, isConvoyActive,
-  onMapClick, onIncidentClick, onFavoriteClick
+  onMapClick, onIncidentClick, onFavoriteClick, onSearchResultClick
 }) => {
   const routePositions = useMemo(() => {
     return route ? route.coordinates.map(([lng, lat]) => ({ lat, lng })) : [];
@@ -192,7 +194,7 @@ const MapView: React.FC<MapViewProps> = ({
         {incidents.map((incident, idx) => {
           const config = incidentIconConfig[incident.type] || incidentIconConfig.other;
           return (
-            <AdvancedMarker key={incident.id || idx} position={incident.location} onClick={() => onIncidentClick?.(incident)}>
+            <AdvancedMarker key={incident.id || idx} position={incident.location} onClick={() => onIncidentClick?.(incident)} zIndex={1000}>
               <div className="w-8 h-8 rounded-full border-[3px] border-white shadow-md flex items-center justify-center text-sm" style={{ backgroundColor: config.color }}>
                 {config.emoji}
               </div>
@@ -207,6 +209,31 @@ const MapView: React.FC<MapViewProps> = ({
             <AdvancedMarker key={fav.id} position={fav.location} onClick={() => onFavoriteClick?.(fav)}>
               <div className="w-8 h-8 rounded-xl border-[3px] border-white shadow-md flex items-center justify-center text-sm" style={{ backgroundColor: config.color }}>
                 {config.emoji}
+              </div>
+            </AdvancedMarker>
+          );
+        })}
+
+        {/* Resultados de Búsqueda */}
+        {searchResults.map((result, idx) => {
+          // Solo renderizar si tiene coordenadas válidas (distintas de '0')
+          const lat = parseFloat(result.lat);
+          const lng = parseFloat(result.lon);
+          if (!lat || !lng || (lat === 0 && lng === 0)) return null;
+
+          return (
+            <AdvancedMarker
+              key={result.place_id || idx}
+              position={{ lat, lng }}
+              onClick={() => onSearchResultClick?.(result)}
+            >
+              <div className="flex flex-col items-center">
+                <div className="bg-white px-2 py-1 rounded-lg shadow-md mb-1 border border-purple-100 max-w-[120px]">
+                  <p className="text-[10px] font-bold text-purple-700 truncate text-center">{result.display_name.split(',')[0]}</p>
+                </div>
+                <div className="w-8 h-8 rounded-full border-[3px] border-white shadow-md flex items-center justify-center text-sm bg-purple-600 text-white animate-bounce">
+                  📍
+                </div>
               </div>
             </AdvancedMarker>
           );

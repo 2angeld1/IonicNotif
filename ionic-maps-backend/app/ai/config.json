@@ -1,0 +1,14 @@
+{
+    "navigation_stopwords": [
+        "ir","a","hacia","llevame","llévame","ruta","dame","como","llegar","el","la","al","quiero","quisiera","me","gustaría","por","favor","de","del"
+    ],
+    "search_stopwords": [
+        "buscar","busca","buscame","búscame","donde","dónde","hay","un","una","cerca","aquí","de","mi","quiero","comer"
+    ],
+    "weather_stopwords": [
+        "clima", "tiempo", "temperatura", "va", "a", "llover", "como", "esta", "en", "el", "la", "pronostico", "llueve"
+    ],
+    "place_details_stopwords": [
+        "que", "tal", "es", "el", "la", "esta", "abierto", "horario", "resenas", "informacion", "de", "del", "cuando", "abre", "cierra", "dame", "opiniones"
+    ]
+}

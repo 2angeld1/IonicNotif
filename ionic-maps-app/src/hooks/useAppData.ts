@@ -8,8 +8,10 @@ import {
   addFavorite,
   confirmIncident,
   dismissIncident,
+  createIncident,
   type Incident,
-  type WeatherInfo
+  type WeatherInfo,
+  type IncidentType
 } from '../services/apiService';
 import type { LatLng, FavoritePlace, FavoriteType } from '../types';
 
@@ -88,6 +90,29 @@ export const useAppData = (defaultCenter: LatLng) => {
     }
   };
 
+  const handleCreateIncident = async (location: LatLng, type: IncidentType, description?: string) => {
+    const newInc = await createIncident(location, type, 'medium', description);
+    if (newInc) {
+      refreshIncidents(defaultCenter);
+    }
+    return newInc;
+  };
+
+  const handleSOS = useCallback(async (location: LatLng) => {
+    // Feedback auditivo
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance("Atención. Enviando señal de emergencia.");
+      u.lang = 'es-ES';
+      window.speechSynthesis.speak(u);
+    }
+    // SOS como prioridad alta
+    const newInc = await createIncident(location, 'police', 'high', 'SOS: Emergencia reportada');
+    if (newInc) refreshIncidents(location);
+    return newInc;
+  }, [refreshIncidents]);
+
+  const clearIncidents = useCallback(() => setIncidents([]), []);
+
   return {
     apiAvailable,
     isBackendLoading,
@@ -100,6 +125,9 @@ export const useAppData = (defaultCenter: LatLng) => {
     handleCreateFavorite,
     handleConfirmIncident,
     handleDismissIncident,
-    setModelStatus
+    handleCreateIncident,
+    setModelStatus,
+    clearIncidents,
+    handleSOS
   };
 };

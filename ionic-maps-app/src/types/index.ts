@@ -7,7 +7,7 @@ export interface LocationSuggestion {
   display_name: string;
   lat: string;
   lon: string;
-  place_id: number;
+  place_id: string | number;
 }
 
 export interface RouteStep {

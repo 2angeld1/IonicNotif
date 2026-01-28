@@ -4,7 +4,70 @@ import type { LocationSuggestion, RouteInfo } from '../types';
  * Buscar ubicaciones por texto usando Google Maps Places Autocomplete
  * Usamos el servicio de Google Maps que se carga globalmente
  */
-export const searchLocations = async (query: string): Promise<LocationSuggestion[]> => {
+/**
+ * Buscar lugares cercanos usando PlacesService (Mejor para "buscar restaurantes", "farmacias", etc.)
+ * Prioriza cercanía real vs Autocomplete que prioriza relevancia/fama.
+ */
+export const findNearbyPlaces = async (query: string, center?: { lat: number; lng: number }): Promise<LocationSuggestion[]> => {
+  if (!query) return [];
+
+  return new Promise((resolve) => {
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      console.error('Google Maps Places library not loaded');
+      resolve([]);
+      return;
+    }
+
+    // PlacesService requiere un elemento HTML (aunque no lo usemos visualmente)
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+
+    if (center) {
+      // Búsqueda estricta por cercanía usando nearbySearch
+      const request: google.maps.places.PlaceSearchRequest = {
+        keyword: query,
+        location: center,
+        rankBy: google.maps.places.RankBy.DISTANCE
+      };
+
+      service.nearbySearch(request, (results, status) => {
+        processResults(results, status, resolve);
+      });
+    } else {
+      // Búsqueda general por relevancia usando textSearch
+      const request: google.maps.places.TextSearchRequest = {
+        query: query,
+        location: { lat: 8.9824, lng: -79.5199 },
+        radius: 50000
+      };
+      service.textSearch(request, (results, status) => {
+        processResults(results, status, resolve);
+      });
+    }
+
+    // Helper para procesar resultados de ambos métodos
+    const processResults = (
+      results: google.maps.places.PlaceResult[] | null,
+      status: google.maps.places.PlacesServiceStatus,
+      resolve: (value: LocationSuggestion[]) => void
+    ) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+        const suggestions: LocationSuggestion[] = results.map(place => ({
+          place_id: place.place_id || '',
+          display_name: place.name + (place.vicinity ? `, ${place.vicinity}` : ''), // nearbySearch usa vicinity
+          lat: place.geometry?.location?.lat().toString() || '0',
+          lon: place.geometry?.location?.lng().toString() || '0',
+          type: 'place'
+        }));
+        resolve(suggestions);
+      } else {
+        console.warn('Places Search status:', status);
+        resolve([]);
+      }
+    };
+  });
+};
+
+export const searchLocations = async (query: string, center?: { lat: number; lng: number }): Promise<LocationSuggestion[]> => {
   if (!query || query.length < 3) return [];
 
   return new Promise((resolve) => {
@@ -15,13 +78,18 @@ export const searchLocations = async (query: string): Promise<LocationSuggestion
     }
 
     const service = new google.maps.places.AutocompleteService();
+    const bias = center ? {
+      radius: 10000, // 10km alrededor del usuario
+      center: center
+    } : {
+      radius: 50000,
+      center: { lat: 8.9824, lng: -79.5199 } // Ciudad de Panamá
+    };
+
     service.getPlacePredictions(
       {
         input: query,
-        locationBias: {
-          radius: 50000,
-          center: { lat: 8.9824, lng: -79.5199 } // Ciudad de Panamá como bias
-        },
+        locationBias: bias,
         // sessionToken: sessionToken, // Opcional, ayuda con costos pero puede limitar si no se maneja bien
         // componentRestrictions: { country: 'pa' }, // Comentamos para ampliar la búsqueda si no encuentra nada
       },
@@ -58,6 +126,30 @@ export const getPlaceDetails = async (placeId: string): Promise<{ lat: number; l
         resolve({ lat: loc.lat(), lng: loc.lng() });
       } else {
         console.error('Error en geocodificación:', status);
+        resolve(null);
+      }
+    });
+  });
+};
+
+/**
+ * Obtener detalles extendidos de un lugar (rating, horario, telefono)
+ */
+export const getPlaceDetailsExtended = async (placeId: string): Promise<any | null> => {
+  return new Promise((resolve) => {
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      resolve(null);
+      return;
+    }
+
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+    service.getDetails({
+      placeId: placeId,
+      fields: ['name', 'rating', 'opening_hours', 'formatted_address', 'formatted_phone_number']
+    }, (place, status) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+        resolve(place);
+      } else {
         resolve(null);
       }
     });
