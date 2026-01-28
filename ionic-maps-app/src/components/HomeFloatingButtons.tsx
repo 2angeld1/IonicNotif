@@ -20,6 +20,7 @@ interface HomeFloatingButtonsProps {
   onSOS?: () => void;
   onShareETA?: () => void;
   hasRoute?: boolean;
+  onOpenAvatar?: () => void;
 }
 
 const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
@@ -35,7 +36,8 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
   onClearIncidents,
   onSOS,
   onShareETA,
-  hasRoute
+  hasRoute,
+  onOpenAvatar
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -94,6 +96,16 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
             style={{ borderRadius: '50%' }}
           >
             <IonIcon icon={searchOutline} className="text-2xl" />
+          </button>
+
+          {/* Avatar Button */}
+          <button
+            onClick={() => { onOpenAvatar?.(); setIsOpen(false); }}
+            className="w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 shadow-lg text-white rounded-full flex items-center justify-center"
+            style={{ borderRadius: '50%' }}
+            title="Personalizar Vehículo"
+          >
+            <IonIcon icon={carSportOutline} className="text-2xl" />
           </button>
 
           <button

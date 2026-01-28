@@ -4,6 +4,16 @@ import type { LatLng, RouteInfo, FavoritePlace, ConvoyMember, LocationSuggestion
 import type { Incident } from '../services/apiService';
 import { useMapController } from '../hooks/useMapController';
 import { incidentIconConfig, favoriteIconConfig, mapConfig } from '../utils/mapConfigs';
+import { IonIcon } from '@ionic/react';
+import { carSport, car, bus, bicycle, walk } from 'ionicons/icons';
+
+const vehicleIcons: Record<string, string> = {
+  'sport': carSport,
+  'sedan': car,
+  'bus': bus,
+  'bike': bicycle,
+  'walk': walk
+};
 
 // Sub-componente para la Polilínea (con soporte para click)
 const Polyline = (props: {
@@ -93,14 +103,18 @@ interface MapViewProps {
   isConvoyActive?: boolean;
   searchResults?: LocationSuggestion[];
   onSearchResultClick?: (result: LocationSuggestion) => void;
+  userAvatar?: { type: string; color: string };
 }
 
 const MapView: React.FC<MapViewProps> = ({
   start, end, route,
   alternativeRoutes = [], selectedRouteIndex = 0, onRouteClick,
   incidents = [], favorites = [], convoyMembers = [], searchResults = [],
-  userLocation, userHeading, recenterTrigger, mapTypeId = 'roadmap', isRouteMode, isConvoyActive,
-  onMapClick, onIncidentClick, onFavoriteClick, onSearchResultClick
+  userLocation, userHeading, recenterTrigger, mapTypeId = 'roadmap',
+  isRouteMode = false, // Default to false if not provided
+  isConvoyActive,
+  onMapClick, onIncidentClick, onFavoriteClick, onSearchResultClick,
+  userAvatar
 }) => {
   const routePositions = useMemo(() => {
     return route ? route.coordinates.map(([lng, lat]) => ({ lat, lng })) : [];
@@ -258,8 +272,28 @@ const MapView: React.FC<MapViewProps> = ({
         {/* Ubicación del Usuario */}
         {userLocation && (
           <AdvancedMarker position={userLocation} zIndex={1000}>
-            {isRouteMode ? (
-              <div className="w-14 h-14 flex items-center justify-center" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))' }}>
+            {/* Contenedor rotatorio para avatar */}
+            {userAvatar && vehicleIcons[userAvatar.type] ? (
+              <div
+                className="relative flex items-center justify-center"
+                style={{
+                  transform: `rotate(${userHeading || 0}deg)`,
+                  transition: 'transform 0.5s ease-out'
+                }}
+              >
+                {/* Sombra/Glow */}
+                <div className="absolute inset-0 bg-white/30 blur-md rounded-full transform scale-75"></div>
+                <div
+                  className="w-12 h-12 flex items-center justify-center filter drop-shadow-lg"
+                  style={{ color: userAvatar.color }}
+                >
+                  <IonIcon icon={vehicleIcons[userAvatar.type]} className="text-4xl" />
+                </div>
+              </div>
+            ) : (
+
+              isRouteMode ? (
+                <div className="w-14 h-14 flex items-center justify-center" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))', transform: `rotate(${userHeading || 0}deg)`, transition: 'transform 0.5s ease-out' }}>
                 <svg viewBox="0 0 24 24" className="w-full h-full">
                   <defs>
                     <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -294,6 +328,8 @@ const MapView: React.FC<MapViewProps> = ({
                 <div className="absolute inset-0 bg-blue-500/50 rounded-full animate-ping-slow"></div>
                 <div className="absolute inset-1.5 bg-blue-600 border-2 border-white rounded-full shadow-lg"></div>
               </div>
+                )
+
             )}
           </AdvancedMarker>
         )}

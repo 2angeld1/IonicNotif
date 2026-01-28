@@ -15,6 +15,7 @@ import AIChatModal from '../components/AIChatModal';
 import HomeFloatingButtons from '../components/HomeFloatingButtons';
 import HomeActionSheets from '../components/HomeActionSheets';
 import LoadingOverlay from '../components/LoadingOverlay';
+import AvatarSelectorModal from '../components/AvatarSelectorModal';
 
 // Hooks
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -57,6 +58,20 @@ const HomePage: React.FC = () => {
   const [mapClickLocation, setMapClickLocation] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchResults, setSearchResults] = useState<LocationSuggestion[]>([]);
+
+  // Avatar State
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<{ type: string; color: string } | undefined>(() => {
+    try {
+      const saved = localStorage.getItem('user_avatar');
+      return saved ? JSON.parse(saved) : undefined;
+    } catch { return undefined; }
+  });
+
+  const handleSaveAvatar = (avatar: { type: string; color: string }) => {
+    setUserAvatar(avatar);
+    localStorage.setItem('user_avatar', JSON.stringify(avatar));
+  };
 
   // Business Logic Hooks
   const {
@@ -317,6 +332,7 @@ const HomePage: React.FC = () => {
                 // Opcional: limpiar búsqueda al seleccionar
                 // setSearchResults([]);
               }}
+              userAvatar={userAvatar}
             />
           </div>
 
@@ -339,6 +355,7 @@ const HomePage: React.FC = () => {
               onSOS={onSOSClick}
               onShareETA={onShareETAClick}
               hasRoute={!!currentRoute}
+              onOpenAvatar={() => setIsAvatarModalOpen(true)}
             />
           )}
 
@@ -391,6 +408,13 @@ const HomePage: React.FC = () => {
             location={incidentLocation}
             onClose={() => setIsIncidentModalOpen(false)}
             onIncidentCreated={() => { setToast({ show: true, message: '⚠️ Reporte enviado' }); refreshIncidents(sLoc.coords || defaultCenter); }}
+          />
+
+          <AvatarSelectorModal
+            isOpen={isAvatarModalOpen}
+            onClose={() => setIsAvatarModalOpen(false)}
+            onSave={handleSaveAvatar}
+            currentAvatar={userAvatar}
           />
 
           <IonToast
