@@ -6,6 +6,18 @@
     {"text": "ir a la playa", "intent": "navigate"},
     {"text": "navegar al trabajo", "intent": "navigate"},
     {"text": "dame indicaciones para el dorado", "intent": "navigate"},
+    {
+        "text": "vamos a casa",
+        "intent": "navigate"
+    },
+    {
+        "text": "ir a mi casa",
+        "intent": "navigate"
+    },
+    {
+        "text": "regresar a casa",
+        "intent": "navigate"
+    },
     
     {"text": "tengo hambre", "intent": "search_places"},
     {"text": "busca una gasolinera", "intent": "search_places"},
@@ -131,7 +143,10 @@
         "intent": "place_details"
     },
     
-    {"text": "hola calitin", "intent": "chat"},
+    {
+        "text": "hola caitlyn",
+        "intent": "chat"
+    },
     {"text": "quién eres", "intent": "chat"},
     {"text": "buenos días", "intent": "chat"},
     {"text": "gracias", "intent": "chat"},

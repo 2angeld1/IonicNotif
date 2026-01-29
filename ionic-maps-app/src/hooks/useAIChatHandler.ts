@@ -13,6 +13,7 @@ interface UseAIChatHandlerProps {
   setSearchResults: (results: LocationSuggestion[]) => void;
   setToast: (toast: { show: boolean; message: string }) => void;
   handleCreateIncident: (location: LatLng, type: IncidentType, description?: string) => Promise<any>;
+  onAutoNavigate?: (location: LatLng, name: string) => void;
 }
 
 export const useAIChatHandler = ({
@@ -24,7 +25,8 @@ export const useAIChatHandler = ({
   favorites,
   setSearchResults,
   setToast,
-  handleCreateIncident
+  handleCreateIncident,
+  onAutoNavigate
 }: UseAIChatHandlerProps) => {
 
   const handleAIChatNavigate = useCallback(async (dest: string) => {
@@ -33,12 +35,27 @@ export const useAIChatHandler = ({
     }
 
     const normalizedDest = dest.toLowerCase().replace('mi ', '').trim();
-    const fav = favorites.find(f => f.name.toLowerCase() === normalizedDest);
+
+    // Búsqueda inteligente en favoritos (por nombre o por TIPO)
+    let fav = favorites.find(f => f.name.toLowerCase() === normalizedDest);
+
+    // Si no encuentra por nombre exacto, buscar por tipo
+    if (!fav) {
+      if (normalizedDest.includes('casa') || normalizedDest.includes('hogar')) {
+        fav = favorites.find(f => f.type === 'home');
+      } else if (normalizedDest.includes('trabajo') || normalizedDest.includes('oficina')) {
+        fav = favorites.find(f => f.type === 'work');
+      }
+    }
 
     if (fav) {
-      setELoc({ coords: fav.location, name: fav.name });
-      setToast({ show: true, message: `⭐ Destino: ${fav.name} (Favorito)` });
-      setIsRouteModalOpen(true);
+      if (onAutoNavigate) {
+        onAutoNavigate(fav.location, fav.name);
+      } else {
+        setELoc({ coords: fav.location, name: fav.name });
+        setToast({ show: true, message: `⭐ Destino: ${fav.name} (Favorito)` });
+        setIsRouteModalOpen(true);
+      }
       return;
     }
 

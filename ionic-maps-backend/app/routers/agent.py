@@ -133,7 +133,7 @@ async def parse_intent(request: AgentRequest):
         response_data = {"place": place}
         
     else: # chat
-        message = "¡Hola! Soy Calitin 🤖. Puedo ayudarte a traficar rutas o buscar lugares."
+        message = "¡Hola! Soy Caitlyn 🤖. Puedo ayudarte a traficar rutas o buscar lugares."
         
     return {
         "intent": prediction,

@@ -23,6 +23,7 @@ import { useAppData } from '../hooks/useAppData';
 import { useNavigation } from '../hooks/useNavigation';
 import { useConvoy } from '../contexts/ConvoyContext';
 import { useAIChatHandler } from '../hooks/useAIChatHandler';
+import { useTurnByTurnNotifications } from '../hooks/useTurnByTurnNotifications';
 
 // Services & Utils
 import { saveTrip, trainModel, getModelStatus, type TripData } from '../services/apiService';
@@ -111,6 +112,9 @@ const HomePage: React.FC = () => {
     setInternalRoute(currentRoute);
   }, [routeMode, currentRoute]);
 
+  // Notificaciones de giro Nativas
+  useTurnByTurnNotifications(currentRoute?.steps || [], userLocation, routeMode);
+
   // Convoy Location Sync
   useEffect(() => {
     if (userLocation && convoy) {
@@ -134,7 +138,21 @@ const HomePage: React.FC = () => {
     favorites,
     setSearchResults,
     setToast,
-    handleCreateIncident
+    handleCreateIncident,
+    onAutoNavigate: async (destination, name) => {
+      if (!userLocation) {
+        setToast({ show: true, message: 'Se necesita ubicación para ruta automática.' });
+        return;
+      }
+      // Cerrar Chat
+      setIsAIChatOpen(false);
+
+      setELoc({ coords: destination, name: name });
+      setSLoc({ coords: userLocation, name: 'Tu ubicación' });
+
+      const route = await handleCalculateRoute(userLocation, destination);
+      if (route) setRouteMode(true);
+    }
   });
 
   // Handlers locales para UI
@@ -171,11 +189,11 @@ const HomePage: React.FC = () => {
     try {
       const success = await saveTrip(tripData);
       if (success) {
-        setToast({ show: true, message: '🤖 Enseñando a Calitin...' });
+        setToast({ show: true, message: '🤖 Enseñando a Caitlyn...' });
         await trainModel();
         const status = await getModelStatus();
         setModelStatus(status);
-        setToast({ show: true, message: '✨ ¡Calitin aprendió tu ruta!' });
+        setToast({ show: true, message: '✨ ¡Caitlyn aprendió tu ruta!' });
       }
     } catch (error) {
       setToast({ show: true, message: 'Error al guardar' });

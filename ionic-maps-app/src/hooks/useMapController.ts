@@ -38,33 +38,52 @@ export const useMapController = (
 
     // Solo mover la cámara si estamos en modo ruta
     if (isRouteMode && userLocation) {
-      // Throttle de panTo para evitar actualizaciones excesivas
       const now = Date.now();
-      if (now - lastPanTimeRef.current > 50) { // Máximo 20 FPS para la cámara
-        map.panTo(userLocation);
+
+      // Control de Jitter y Throttle (limitado a 60-100ms para evitar sobrecarga de red)
+      if (now - lastPanTimeRef.current > 60) {
+        const updateOptions: google.maps.CameraOptions = {
+          center: userLocation,
+          tilt: 60, // Mantener tilt inmersivo
+          zoom: 19  // Mantener zoom cercano
+        };
+
+        // Solo actualizar heading si el cambio es significativo (> 3 grados) para evitar jitter y re-fetching de tiles
+        const currentHeading = map.getHeading() || 0;
+        let newHeading = currentHeading;
+
+        if (userHeading !== null && userHeading !== undefined) {
+          const diff = Math.abs((userHeading - currentHeading + 180) % 360 - 180);
+          if (diff > 3) { // Umbral de 3 grados
+            newHeading = userHeading;
+          }
+        }
+        updateOptions.heading = newHeading;
+
+        map.moveCamera(updateOptions);
         lastPanTimeRef.current = now;
       }
       
-      // Forzar configuración inicial al entrar al modo ruta O cuando cambia la ruta (recálculo)
-      const routeChanged = route !== lastRouteRef.current && route !== null;
-      if (!lastRouteMode.current || routeChanged) {
-        // Zoom más cercano y mayor inclinación para mejor experiencia de navegación
-        map.setZoom(19);
-        map.setTilt(60); // Mayor inclinación para vista más inmersiva
+      // Forzar configuración inicial al entrar al modo ruta
+      if (!lastRouteMode.current) {
+        // Ajuste inicial agresivo (sin threshold)
+        map.moveCamera({
+          center: userLocation,
+          zoom: 19,
+          tilt: 60,
+          heading: userHeading || 0
+        });
       }
 
-      // Actualizar heading de la cámara (la cámara mira en la dirección del heading)
-      // Esto hace que siempre estemos mirando "hacia adelante" en la ruta
-      if (userHeading !== null && userHeading !== undefined) {
-        map.setHeading(userHeading);
-      }
     } 
     
     // Al salir del modo ruta, resetear la cámara una sola vez
     if (!isRouteMode && lastRouteMode.current) {
-      map.setTilt(0);
-      map.setHeading(0);
-      map.setZoom(15);
+      map.moveCamera({
+        tilt: 0,
+        heading: 0,
+        zoom: 15
+      });
     }
 
     lastRouteMode.current = isRouteMode;

@@ -1,4 +1,4 @@
-package com.calitin.maps;
+package com.caitlyn.maps;
 
 import com.getcapacitor.BridgeActivity;
 

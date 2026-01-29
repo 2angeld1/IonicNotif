@@ -1,18 +1,15 @@
 import React from 'react';
 import { IonIcon } from '@ionic/react';
 import { 
-  locationOutline, 
   closeCircleOutline,
   refreshOutline,
   volumeHighOutline,
   volumeMediumOutline,
   volumeMuteOutline
 } from 'ionicons/icons';
-import type { RouteStep, LatLng } from '../types';
-import { formatDistance, getManeuverIcon } from '../utils/geoUtils';
-import { useRouteStepProgress } from '../hooks/useRouteStepProgress';
-import { useVoiceMode, getVoiceModeLabel } from '../contexts/VoiceModeContext';
-import type { VoiceMode } from '../types';
+import type { RouteStep, LatLng, VoiceMode } from '../types';
+import { formatDistance } from '../utils/geoUtils';
+import { useVoiceMode } from '../contexts/VoiceModeContext';
 
 interface NavigationPanelProps {
   steps: RouteStep[];
@@ -24,16 +21,10 @@ interface NavigationPanelProps {
 
 const NavigationPanel: React.FC<NavigationPanelProps> = ({
   steps,
-  userLocation,
   onClose,
   onRecalculateRoute,
   isOffRoute = false
 }) => {
-  const {
-    currentStepIndex,
-    distanceToNextStep
-  } = useRouteStepProgress(steps, userLocation);
-
   // Control de modo de voz
   const { voiceMode, cycleVoiceMode } = useVoiceMode();
 
@@ -45,100 +36,65 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     }
   };
 
-  const currentStep = steps[currentStepIndex];
-  const nextStep = steps[currentStepIndex + 1];
+  if (!steps || steps.length === 0) return null;
 
-  if (!currentStep) return null;
+  // Calcular totales restantes
+  const totalDistance = steps.reduce((acc, s) => acc + s.distance, 0);
+  const totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
+
+  // Simular tráfico (verde/amarillo/rojo) basado en duración
+  // Lógica simple: si > 1 hora rojo, > 30 min amarillo (ejemplo muy básico, idealmente vendría del backend)
+  const trafficColor = totalDuration > 3600 ? 'bg-red-500' : totalDuration > 1800 ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[2000] px-2 pb-2 animate-fade-in-up">
-      {/* Alerta de Recálculo Automático (Clickeable por si acaso) */}
+    <div className="absolute bottom-4 left-4 right-4 z-[2000] flex flex-col items-center gap-2 animate-fade-in-up">
+      {/* Alerta de Recálculo */}
       {isOffRoute && (
-        <div
-          onClick={onRecalculateRoute}
-          className="bg-amber-500 text-white rounded-xl p-2 mb-1.5 flex items-center justify-center shadow-lg animate-pulse cursor-pointer active:scale-95 transition-transform"
-        >
+        <div onClick={onRecalculateRoute} className="bg-amber-500 text-white rounded-full px-4 py-1 flex items-center shadow-lg animate-pulse cursor-pointer">
           <IonIcon icon={refreshOutline} className="w-4 h-4 mr-2 animate-spin" />
-          <span className="font-bold text-xs">Recalculando ruta...</span>
+          <span className="font-bold text-xs">Recalculando...</span>
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 backdrop-blur-md rounded-xl shadow-2xl border border-blue-400/50 overflow-hidden text-white">
-        {/* Barra de progreso visual - En la parte superior */}
-        <div className="h-1 bg-white/20 w-full">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
-            style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
-          />
+      <div className="w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex items-center p-3 relative">
+        {/* Barra de Tráfico Visual (Fondo sutil) */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100 flex">
+          <div className={`h-full w-full ${trafficColor} opacity-50`}></div>
         </div>
 
-        {/* Paso actual - Compacto */}
-        <div className="p-2.5 flex items-center gap-2.5">
-          {/* Icono de Maniobra */}
-          <div className="bg-white/20 p-2 rounded-lg shrink-0">
-            <IonIcon icon={getManeuverIcon(currentStep.instruction)} className="w-6 h-6 text-white" />
+        {/* Info Principal */}
+        <div className="flex-1 flex flex-col">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-gray-800 animate-pulse-slow">
+              {Math.round(totalDuration / 60)} min
+            </span>
+            <span className="text-sm font-bold text-gray-500">
+              ({formatDistance(totalDistance)})
+            </span>
           </div>
-
-          {/* Instrucción */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-0.5">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-blue-100">
-                Paso {currentStepIndex + 1}/{steps.length}
-              </span>
-              <div className="flex items-center gap-1">
-                {/* Botón de Control de Voz */}
-                <button
-                  onClick={cycleVoiceMode}
-                  className="p-1 hover:bg-white/20 rounded-full transition-colors flex items-center gap-1"
-                  title={getVoiceModeLabel(voiceMode)}
-                >
-                  <IonIcon icon={getVoiceIcon(voiceMode)} className="w-4 h-4" />
-                  <span className="text-[8px] font-medium">
-                    {voiceMode === 'all' ? 'Todo' : voiceMode === 'alerts' ? 'Alertas' : 'Mudo'}
-                  </span>
-                </button>
-                {/* Botón de Cerrar */}
-                <button
-                  onClick={onClose}
-                  className="p-0.5 hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <IonIcon icon={closeCircleOutline} className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <h2 className="text-sm font-bold leading-tight line-clamp-1">
-              {currentStep.instruction}
-            </h2>
-            <div className="flex items-center gap-1.5 mt-0.5 text-blue-100 text-xs">
-              <IonIcon icon={locationOutline} className="w-3 h-3" />
-              {distanceToNextStep !== null ? (
-                <span className="font-bold">{formatDistance(distanceToNextStep)}</span>
-              ) : (
-                  <span>{formatDistance(currentStep.distance)}</span>
-              )}
-              {currentStep.name && (
-                <>
-                  <span className="opacity-50">•</span>
-                  <span className="truncate max-w-[120px] text-[10px]">{currentStep.name}</span>
-                </>
-              )}
-            </div>
-          </div>
+          <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">
+            Ruta más rápida
+          </span>
         </div>
 
-        {/* Vista previa del siguiente paso - Muy compacta */}
-        {nextStep && (
-          <div className="bg-blue-800/50 px-2.5 py-1.5 flex items-center gap-2 border-t border-blue-400/30">
-            <IonIcon icon={getManeuverIcon(nextStep.instruction)} className="w-4 h-4 text-blue-200 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <span className="text-[9px] uppercase tracking-wide text-blue-300">Luego</span>
-              <p className="text-xs text-blue-100 line-clamp-1">{nextStep.instruction}</p>
-            </div>
-            <span className="text-[10px] font-bold text-blue-200 shrink-0">{formatDistance(nextStep.distance)}</span>
-          </div>
-        )}
+        {/* Controles Derecha */}
+        <div className="flex items-center gap-3">
+          {/* Control de Voz (Compacto) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); cycleVoiceMode(); }}
+            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
+                >
+            <IonIcon icon={getVoiceIcon(voiceMode)} className="text-xl" />
+          </button>
 
-
+          {/* Botón Salir (Destacado) */}
+          <button
+            onClick={onClose}
+            className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center border border-red-200 shadow-sm active:scale-95 transition-transform"
+          >
+            <IonIcon icon={closeCircleOutline} className="text-2xl" />
+          </button>
+        </div>
       </div>
 
       <style>{`

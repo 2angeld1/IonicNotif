@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import { 
   layersOutline, searchOutline, locationOutline, 
-  carSportOutline, warningOutline, sparklesOutline, eyeOffOutline, addOutline,
-  shareOutline, alertCircleOutline
+  carSportOutline, warningOutline, sparklesOutline, eyeOffOutline, addOutline, alertCircleOutline
 } from 'ionicons/icons';
 
 interface HomeFloatingButtonsProps {
@@ -34,10 +33,7 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
   isConvoyActive,
   apiAvailable,
   onClearIncidents,
-  onSOS,
-  onShareETA,
-  hasRoute,
-  onOpenAvatar
+  onSOS
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -51,6 +47,15 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
         style={{ borderRadius: '50%' }}
       >
         <IonIcon icon={sparklesOutline} className="text-2xl" />
+      </button>
+
+      {/* Botón Buscar (Siempre Visible) */}
+      <button
+        onClick={onOpenRouteModal}
+        className="w-14 h-14 bg-blue-600 shadow-xl text-white rounded-full flex items-center justify-center border-2 border-white/20 active:scale-95 transition-transform"
+        style={{ borderRadius: '50%' }}
+      >
+        <IonIcon icon={searchOutline} className="text-2xl" />
       </button>
 
       {/* Botón Recentrar (Siempre Visible si aplica) */}
@@ -79,6 +84,7 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
           </button>
 
           {/* Share ETA (if routing) */}
+          {/* Share ETA (if routing) - Comentado temporalmente
           {hasRoute && (
             <button
               onClick={() => { onShareETA?.(); setIsOpen(false); }}
@@ -89,16 +95,10 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
               <IonIcon icon={shareOutline} className="text-2xl" />
             </button>
           )}
+          */}
 
-          <button
-            onClick={() => { onOpenRouteModal(); setIsOpen(false); }}
-            className="w-14 h-14 bg-blue-600 shadow-lg text-white rounded-full flex items-center justify-center"
-            style={{ borderRadius: '50%' }}
-          >
-            <IonIcon icon={searchOutline} className="text-2xl" />
-          </button>
 
-          {/* Avatar Button */}
+          {/* Avatar Button (Comentado temporalmente para futura implementación 3D)
           <button
             onClick={() => { onOpenAvatar?.(); setIsOpen(false); }}
             className="w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 shadow-lg text-white rounded-full flex items-center justify-center"
@@ -107,6 +107,7 @@ const HomeFloatingButtons: React.FC<HomeFloatingButtonsProps> = ({
           >
             <IonIcon icon={carSportOutline} className="text-2xl" />
           </button>
+          */}
 
           <button
             onClick={() => { onOpenMapType(); setIsOpen(false); }}

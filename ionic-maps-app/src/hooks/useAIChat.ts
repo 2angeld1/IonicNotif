@@ -54,7 +54,7 @@ export const useAIChat = ({
   userLocation
 }: UseAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', text: '¡Hola! Soy Calitin 🤖. ¿A dónde quieres ir hoy?', sender: 'agent' }
+    { id: '1', text: '¡Hola! Soy Caitlyn 🤖. ¿A dónde quieres ir hoy?', sender: 'agent' }
   ]);
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -73,19 +73,11 @@ export const useAIChat = ({
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'es-ES';
-    utterance.pitch = 0.8; // Voz más grave (masculina)
+    // Voz natural por defecto (Caitlyn) - Sin pitch grave
+    utterance.pitch = 1.0;
     utterance.rate = 1.0;
 
-    // Intentar seleccionar una voz masculina preferida si está disponible
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v =>
-      v.lang.startsWith('es') && (
-        v.name.toLowerCase().includes('pablo') ||
-        v.name.toLowerCase().includes('male') ||
-        v.name.toLowerCase().includes('google español')
-      )
-    );
-    if (preferredVoice) utterance.voice = preferredVoice;
+    // Usamos la voz por defecto del sistema (generalmente femenina de alta calidad)
 
     window.speechSynthesis.speak(utterance);
   }, []);

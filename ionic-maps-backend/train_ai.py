@@ -5,7 +5,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import make_pipeline
 
 def train_brain():
-    print("🧠 Entrenando a Calitin...")
+    print("🧠 Entrenando a Caitlyn...")
     
     # 1. Cargar datos
     with open('app/ai/dataset.json', 'r', encoding='utf-8') as f:

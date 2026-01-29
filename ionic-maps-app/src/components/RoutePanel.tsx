@@ -191,7 +191,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                       {alternativeRoutes.some(r => r.ml_recommended) && (
                         <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[9px] font-bold">
                           <IonIcon icon={sparkles} className="w-3 h-3" />
-                          Calitin ✨
+                          Caitlyn ✨
                         </div>
                       )}
                     </div>
@@ -225,7 +225,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                                 </p>
                                 {altRoute.ml_recommended && selectedRouteIndex !== index && (
                                   <span className="bg-purple-200 text-purple-700 text-[8px] px-1.5 py-0.5 rounded-full font-bold">
-                                    🤖 Calitin
+                                    🤖 Caitlyn
                                   </span>
                                 )}
                               </div>
@@ -309,7 +309,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                         ) : (
                           <>
                               <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
-                              <span className="font-semibold text-xs tracking-wider">ENSEÑAR A CALITIN 🤖</span>
+                              <span className="font-semibold text-xs tracking-wider">ENSEÑAR A CAITLYN 🤖</span>
                           </>
                         )}
                       </div>
@@ -330,7 +330,7 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${modelStatus.is_trained ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                     }`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${modelStatus.is_trained ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                    {modelStatus.is_trained ? 'Calitin Listo 🤖' : 'Entrenando...'}
+                    {modelStatus.is_trained ? 'Caitlyn Lista 🤖' : 'Entrenando...'}
                   </div>
                 </div>
               </div>
