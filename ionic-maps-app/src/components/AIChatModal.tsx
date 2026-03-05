@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { 
+import {
   IonModal, IonContent, IonIcon, IonHeader, IonFooter
 } from '@ionic/react';
 import { sendOutline, micOutline, closeOutline, sparklesOutline } from 'ionicons/icons';
@@ -9,25 +9,26 @@ interface AIChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   userLocation: { lat: number; lng: number } | null;
-  onNavigateTo: (destination: string) => void;
+  onNavigateTo: (destination: string, origin?: string) => void;
   onSearchPlaces: (query: string, count: number) => Promise<any[]>;
   onReportIncident: (type: string) => void;
   onCheckWeather: (location: string) => Promise<string>;
   onPlaceDetails: (place: string) => Promise<string>;
+  isHiveConnected?: boolean;
 }
 
 const AIChatModal: React.FC<AIChatModalProps> = (props) => {
   const {
-      messages,
-      inputText,
-      setInputText,
-      isProcessing,
-      isListening,
-      handleSend,
-      handleMicClick
+    messages,
+    inputText,
+    setInputText,
+    isProcessing,
+    isListening,
+    handleSend,
+    handleMicClick
   } = useAIChat(props);
 
-  const { isOpen, onClose } = props;
+  const { isOpen, onClose, isHiveConnected = false } = props;
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLIonContentElement>(null);
 
@@ -47,8 +48,8 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
   };
 
   return (
-    <IonModal 
-        isOpen={isOpen} 
+    <IonModal
+      isOpen={isOpen}
       onDidDismiss={onClose}
     >
       <IonHeader className="ion-no-border">
@@ -58,14 +59,21 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
               <IonIcon icon={sparklesOutline} className="text-xl" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-800">Caitlyn AI</h2>
+              <h2 className="font-bold text-gray-800">
+                {isHiveConnected ? 'Caitlyn & Hive' : 'Caitlyn'}
+              </h2>
               <div className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span className="text-xs text-gray-500 font-medium">En línea</span>
+                <span className={`w-2 h-2 ${isHiveConnected ? 'bg-green-500' : 'bg-gray-400'} rounded-full`}></span>
+                <span className="text-xs text-gray-500 font-medium">
+                  {isHiveConnected ? 'En línea' : 'Conectando...'}
+                </span>
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors">
+          <button
+            onClick={onClose}
+            className="!p-2 !bg-gray-100 !rounded-full !text-gray-500 hover:!bg-gray-200 !transition-colors"
+          >
             <IonIcon icon={closeOutline} />
           </button>
         </div>
@@ -73,71 +81,70 @@ const AIChatModal: React.FC<AIChatModalProps> = (props) => {
 
       <IonContent ref={contentRef} className="ion-padding" style={{ '--background': '#f9fafb' } as React.CSSProperties}>
         <div className="flex flex-col gap-4">
-              {messages.map(msg => (
-                  <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm text-sm font-medium leading-relaxed ${
-                          msg.sender === 'user' 
-                          ? 'bg-blue-600 text-white rounded-tr-none' 
-                          : 'bg-white text-gray-700 rounded-tl-none border border-gray-100'
-                      }`}>
-                          {msg.text}
-                      </div>
+          {messages.map(msg => (
+            <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm text-sm font-medium leading-relaxed ${msg.sender === 'user'
+                ? 'bg-blue-600 text-white rounded-tr-none'
+                : 'bg-white text-gray-700 rounded-tl-none border border-gray-100'
+                }`}>
+                {msg.text}
+              </div>
 
-                      {msg.actions && msg.actions.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-2">
-                              {msg.actions.map((action, idx) => (
-                                  <button 
-                                    key={idx}
-                                    onClick={action.action}
-                                  className="flex items-center gap-2 !bg-indigo-600 !text-white !px-4 !py-2 !rounded-xl !shadow-lg hover:!bg-indigo-700 !transition-all active:!scale-95 !text-xs !font-bold"
-                                  >
-                                      {action.icon && <IonIcon icon={action.icon} />}
-                                      {action.label}
-                                  </button>
-                              ))}
-                          </div>
-                      )}
-                  </div>
-              ))}
-              {isProcessing && (
-                  <div className="flex items-start">
-                      <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                      </div>
-                  </div>
+              {msg.actions && msg.actions.length > 0 && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {msg.actions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      onClick={action.action}
+                      className="flex items-center gap-2 !bg-indigo-600 !text-white !px-4 !py-2 !rounded-xl !shadow-lg hover:!bg-indigo-700 !transition-all active:!scale-95 !text-xs !font-bold"
+                    >
+                      {action.icon && <IonIcon icon={action.icon} />}
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
               )}
-           </div>
-        </IonContent>
+            </div>
+          ))}
+          {isProcessing && (
+            <div className="flex items-start">
+              <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+              </div>
+            </div>
+          )}
+        </div>
+      </IonContent>
 
       <IonFooter className="ion-no-border">
         <div className="p-3 bg-white border-t border-gray-100">
-            <div className={`flex items-center gap-2 bg-gray-100 p-2 rounded-full border transition-all ${isListening ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'}`}>
-                <input 
-                    ref={inputRef}
-                    type="text" 
-                    value={inputText}
-                    onChange={e => setInputText(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    placeholder={isListening ? "Escuchando..." : "Escribe algo..."}
-                    className="flex-1 bg-transparent px-4 py-2 outline-none text-gray-700 font-medium placeholder:text-gray-400"
-                />
-                
-                {inputText.trim() ? (
+          <div className={`flex items-center gap-2 bg-gray-100 p-2 rounded-full border transition-all ${isListening ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'}`}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder={isListening ? "Escuchando..." : "Escribe algo..."}
+              className="flex-1 bg-transparent px-4 py-2 outline-none text-gray-700 font-medium placeholder:text-gray-400"
+            />
+
+            {inputText.trim() ? (
               <button onClick={handleSend} className="!w-10 !h-10 !bg-blue-600 !text-white !rounded-full !flex !items-center !justify-center !shadow-md hover:!bg-blue-700 !transition-colors">
-                        <IonIcon icon={sendOutline} />
-                    </button>
-                ) : (
-                    <button 
-                        onClick={handleMicClick}
-                  className={`!w-10 !h-10 !rounded-full !flex !items-center !justify-center !transition-all ${isListening ? '!bg-red-500 !text-white !animate-pulse' : '!bg-gray-200 !text-gray-500 hover:!bg-gray-300'
-                        }`}
-                    >
-                        <IonIcon icon={micOutline} />
-                    </button>
-                )}
-            </div>
+                <IonIcon icon={sendOutline} />
+              </button>
+            ) : (
+              <button
+                onClick={handleMicClick}
+                className={`!w-10 !h-10 !rounded-full !flex !items-center !justify-center !transition-all ${isListening ? '!bg-red-500 !text-white !animate-pulse' : '!bg-gray-200 !text-gray-500 hover:!bg-gray-300'
+                  }`}
+              >
+                <IonIcon icon={micOutline} />
+              </button>
+            )}
+          </div>
         </div>
       </IonFooter>
     </IonModal>

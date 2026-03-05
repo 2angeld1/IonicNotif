@@ -162,6 +162,7 @@ export const getPlaceDetailsExtended = async (placeId: string): Promise<any | nu
 export const getRoute = async (
   start: { lat: number; lng: number },
   end: { lat: number; lng: number },
+  waypoints: google.maps.DirectionsWaypoint[] = [],
   provideAlternatives: boolean = false
 ): Promise<RouteInfo | null> => {
   return new Promise((resolve) => {
@@ -171,6 +172,8 @@ export const getRoute = async (
       {
         origin: start,
         destination: end,
+        waypoints: waypoints,
+        optimizeWaypoints: true,
         travelMode: google.maps.TravelMode.DRIVING,
         provideRouteAlternatives: provideAlternatives,
         drivingOptions: {
@@ -181,23 +184,35 @@ export const getRoute = async (
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result && result.routes[0]) {
           const route = result.routes[0];
-          const leg = route.legs[0];
+
+          // Sumar todos los legs (para cuando hay paradas intermedias)
+          let totalDistance = 0;
+          let totalDuration = 0;
+          let totalDurationInTraffic = 0;
+          let allSteps: any[] = [];
+
+          route.legs.forEach(leg => {
+            totalDistance += leg.distance?.value || 0;
+            totalDuration += leg.duration?.value || 0;
+            totalDurationInTraffic += leg.duration_in_traffic?.value || leg.duration?.value || 0;
+            allSteps = [...allSteps, ...leg.steps];
+          });
 
           const path = route.overview_path.map(p => [p.lng(), p.lat()] as [number, number]);
 
-          const steps = leg.steps.map(step => {
+          const steps = allSteps.map(step => {
             // Analizar tráfico (Google a veces no da duration_in_traffic por step en API Standard, 
             // pero si lo da, lo usamos. Si no, asumimos normal por defecto)
             // @ts-ignore - duration_in_traffic a veces existe aunque los tipos no lo digan
             const trafficDur = step.duration_in_traffic?.value;
             const normalDur = step.duration?.value || 0;
 
-            let status: 'normal' | 'moderate' | 'heavy' | 'severe' = 'normal';
+            let trafficStatus: 'normal' | 'moderate' | 'heavy' | 'severe' = 'normal';
             if (trafficDur) {
               const ratio = trafficDur / normalDur;
-              if (ratio > 2.0) status = 'severe';
-              else if (ratio > 1.5) status = 'heavy';
-              else if (ratio > 1.2) status = 'moderate';
+              if (ratio > 2.0) trafficStatus = 'severe';
+              else if (ratio > 1.5) trafficStatus = 'heavy';
+              else if (ratio > 1.2) trafficStatus = 'moderate';
             }
 
             // Convertir Geometry a LatLng[]
@@ -217,17 +232,18 @@ export const getRoute = async (
                 lng: step.end_location.lng()
               } : undefined,
               path: stepPath,
-              traffic_status: status
+              traffic_status: trafficStatus
             };
           });
 
           resolve({
-            distance: leg.distance?.value || 0,
-            duration: leg.duration?.value || 0,
-            duration_in_traffic: leg.duration_in_traffic?.value || leg.duration?.value || 0,
+            distance: totalDistance,
+            duration: totalDuration,
+            duration_in_traffic: totalDurationInTraffic,
             coordinates: path,
-            steps: steps
-          }); 
+            steps: steps,
+            summary: route.summary || 'Ruta sugerida'
+          });
 
         } else {
           console.error('Error obteniendo ruta:', status);

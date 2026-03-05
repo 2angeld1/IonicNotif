@@ -35,7 +35,7 @@ interface Message {
 }
 
 interface UseAIChatProps {
-  onNavigateTo: (destination: string) => void;
+  onNavigateTo: (destination: string, origin?: string, locations?: any[]) => void;
   onSearchPlaces: (query: string, count: number) => Promise<any[]>;
   onReportIncident: (type: string) => void;
   onCheckWeather: (location: string) => Promise<string>;
@@ -85,10 +85,10 @@ export const useAIChat = ({
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
-    const userMsg: Message = { 
-        id: Date.now().toString(), 
-        text: inputText, 
-        sender: 'user' 
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      text: inputText,
+      sender: 'user'
     };
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
@@ -100,7 +100,7 @@ export const useAIChat = ({
 
       if (result) {
         const { intent, message, data } = result;
-        
+
         const agentMsg: Message = {
           id: (Date.now() + 1).toString(),
           text: message,
@@ -109,14 +109,14 @@ export const useAIChat = ({
         };
 
         if (intent === 'navigate') {
-            agentMsg.actions = [{
-                label: 'Trazar Ruta',
-                icon: navigateOutline,
-                action: () => {
-                    onNavigateTo(data.destination);
-                    onClose();
-                }
-            }];
+          agentMsg.actions = [{
+            label: 'Trazar Ruta',
+            icon: navigateOutline,
+            action: () => {
+              onNavigateTo(data.destination, data.origin, data.locations);
+              onClose();
+            }
+          }];
         } else if (intent === 'search_places') {
           // Buscamos los lugares y esperamos los resultados para mostrarlos en el chat
           const count = data.count || 4;
@@ -137,20 +137,20 @@ export const useAIChat = ({
             agentMsg.text = `Lo siento, no encontré "${data.query}" abiertos en este momento. 😕`;
           }
         } else if (intent === 'report_incident') {
-            agentMsg.actions = [{
-              label: `Confirmar Reporte de ${data.type === 'police' ? 'Policía' : data.type === 'accident' ? 'Accidente' : 'Incidente'}`,
-              icon: locationOutline, // Podría ser alertCircleOutline
-                action: () => {
-                  onReportIncident(data.type);
-                  const confirmText = '✅ Reporte enviado a la comunidad. ¡Gracias por avisar!';
-                  setMessages(prev => [...prev, {
-                    id: Date.now().toString(),
-                    text: confirmText,
-                    sender: 'agent'
-                  }]);
-                  speak('Reporte enviado a la comunidad. Gracias.');
-                }
-            }];
+          agentMsg.actions = [{
+            label: `Confirmar Reporte de ${data.type === 'police' ? 'Policía' : data.type === 'accident' ? 'Accidente' : 'Incidente'}`,
+            icon: locationOutline, // Podría ser alertCircleOutline
+            action: () => {
+              onReportIncident(data.type);
+              const confirmText = '✅ Reporte enviado a la comunidad. ¡Gracias por avisar!';
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                text: confirmText,
+                sender: 'agent'
+              }]);
+              speak('Reporte enviado a la comunidad. Gracias.');
+            }
+          }];
         } else if (intent === 'check_weather') {
           // Procesar clima asíncronamente y responder
           const weatherInfo = await onCheckWeather(data.location);
@@ -168,14 +168,14 @@ export const useAIChat = ({
 
     } catch (error) {
       const errorMsg = 'Lo siento, tuve un problema de conexión. ¿Puedes repetirlo?';
-       setMessages(prev => [...prev, { 
-           id: Date.now().toString(), 
-         text: errorMsg, 
-           sender: 'agent' 
-       }]);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: errorMsg,
+        sender: 'agent'
+      }]);
       speak(errorMsg);
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 

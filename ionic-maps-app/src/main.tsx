@@ -8,16 +8,28 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 
 setupIonicReact()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <APIProvider
-      apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
-      libraries={['places']}
-    >
-      <App />
-    </APIProvider>
-  </StrictMode>,
-)
+const initApp = () => {
+  const container = document.getElementById('root');
+  if (!container) {
+    console.warn('Esperando el elemento raíz...');
+    setTimeout(initApp, 50);
+    return;
+  }
+
+  const root = createRoot(container);
+  root.render(
+    <StrictMode>
+      <APIProvider
+        apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+        libraries={['places']}
+      >
+        <App />
+      </APIProvider>
+    </StrictMode>,
+  );
+};
+
+initApp();
 
 // Registrar Service Worker para PWA
 if ('serviceWorker' in navigator) {

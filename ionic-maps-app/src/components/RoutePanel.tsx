@@ -28,6 +28,10 @@ interface RoutePanelProps {
   isLoading: boolean;
   onStartChange: (coords: LatLng, name: string) => void;
   onEndChange: (coords: LatLng, name: string) => void;
+  waypoints?: { coords: LatLng | null; name: string }[];
+  onWaypointChange?: (index: number, coords: LatLng, name: string) => void;
+  onAddWaypoint?: () => void;
+  onRemoveWaypoint?: (index: number) => void;
   onCalculateRoute: () => void;
   onSwapLocations: () => void;
   onClear: () => void;
@@ -55,6 +59,10 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
   isLoading,
   onStartChange,
   onEndChange,
+  waypoints = [],
+  onWaypointChange,
+  onAddWaypoint,
+  onRemoveWaypoint,
   onCalculateRoute,
   onSwapLocations,
   onClear,
@@ -94,6 +102,43 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                   favorites={favorites}
                   userLocation={userLocation}
                 />
+
+                {/* Waypoints dinámicos */}
+                {waypoints.map((wp, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <LocationSearch
+                        label=""
+                        placeholder={`🛑 Parada ${index + 1}`}
+                        value={wp.name}
+                        onLocationSelect={(coords, name) => onWaypointChange?.(index, coords, name)}
+                        color="blue"
+                        favorites={favorites}
+                        userLocation={userLocation}
+                      />
+                    </div>
+                    {onRemoveWaypoint && (
+                      <button
+                        onClick={() => onRemoveWaypoint(index)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <IonIcon icon={trashOutline} className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {onAddWaypoint && waypoints.length < 5 && (
+                  <button
+                    onClick={onAddWaypoint}
+                    className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700 p-1 transition-colors"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center">
+                      <span className="text-lg leading-none">+</span>
+                    </div>
+                    AÑADIR PARADA
+                  </button>
+                )}
 
                 <LocationSearch
                   label=""
@@ -308,8 +353,8 @@ const RoutePanel: React.FC<RoutePanelProps> = ({
                           </>
                         ) : (
                           <>
-                              <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
-                              <span className="font-semibold text-xs tracking-wider">ENSEÑAR A CAITLYN 🤖</span>
+                            <IonIcon icon={saveOutline} className="w-4 h-4 opacity-90" />
+                            <span className="font-semibold text-xs tracking-wider">ENSEÑAR A CAITLYN 🤖</span>
                           </>
                         )}
                       </div>

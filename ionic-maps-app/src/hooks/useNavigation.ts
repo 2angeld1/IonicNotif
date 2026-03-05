@@ -27,15 +27,45 @@ export const useNavigation = (
   // Referencia para el debounce de fuera de ruta
   const offRouteCounterRef = useRef(0);
 
+  const [waypoints, setWaypoints] = useState<{ coords: LatLng | null; name: string }[]>([]);
+
   // Calcular rutas con alternativas y predicciones ML
-  const handleCalculateRoute = useCallback(async (start?: LatLng, end?: LatLng) => {
+  const handleCalculateRoute = useCallback(async (
+    start?: LatLng,
+    end?: LatLng,
+    wps: { coords: LatLng | null; name: string }[] = []
+  ) => {
     const s = start || startLocation.coords;
     const e = end || endLocation.coords;
+    const currentWps = wps.length > 0 ? wps : waypoints;
+
     if (!s || !e) return null;
 
     setIsLoading(true);
     try {
-      // 1. Obtener rutas alternativas de Google Maps
+      // 1. Convertir waypoints internos a formato Google Maps
+      const googleWaypoints: google.maps.DirectionsWaypoint[] = currentWps
+        .filter(wp => wp.coords)
+        .map(wp => ({
+          location: wp.coords!,
+          stopover: true
+        }));
+
+      if (googleWaypoints.length > 0) {
+        const result = await getRoute(s, e, googleWaypoints);
+        if (result) {
+          setRoute(result);
+          setAlternativeRoutes([result]);
+          setSelectedRouteIndex(0);
+          setMlRecommendedIndex(null);
+          setIsOffRoute(false);
+          offRouteCounterRef.current = 0;
+          setWaypoints(currentWps);
+        }
+        return result;
+      }
+
+      // 1. Obtener rutas alternativas de Google Maps (comportamiento original sin paradas)
       const alternatives = await getRouteAlternatives(s, e);
 
       if (alternatives.length > 0) {
@@ -78,7 +108,7 @@ export const useNavigation = (
 
         return enrichedAlternatives[0];
       } else {
-      // Fallback a ruta única si no hay alternativas
+        // Fallback a ruta única si no hay alternativas
         const result = await getRoute(s, e);
         if (result) {
           setRoute(result);
@@ -176,7 +206,7 @@ export const useNavigation = (
     if (!isRouteMode || !userLocation) return;
 
     // Incidencias
-    const nearby = incidents.find(inc => 
+    const nearby = incidents.find(inc =>
       calculateDistance(userLocation.lat, userLocation.lng, inc.location.lat, inc.location.lng) < 500
     );
     if (nearby) {
@@ -245,6 +275,8 @@ export const useNavigation = (
     handleCalculateRoute,
     handleRecalculateRoute,
     setAlternativeRoutes,
-    handleShareETA
+    handleShareETA,
+    waypoints,
+    setWaypoints
   };
 };

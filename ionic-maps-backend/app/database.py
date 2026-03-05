@@ -1,3 +1,4 @@
+import sys
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import get_settings
@@ -15,14 +16,14 @@ db = Database()
 async def connect_to_mongo():
     """Conectar a MongoDB"""
     db.client = AsyncIOMotorClient(settings.mongodb_url)
-    print(f"✅ Conectado a MongoDB: {settings.mongodb_url}")
+    print(f"✅ Conectado a MongoDB: {settings.mongodb_url}", file=sys.stderr)
     
     
 async def close_mongo_connection():
     """Cerrar conexión a MongoDB"""
     if db.client:
         db.client.close()
-        print("❌ Conexión a MongoDB cerrada")
+        print("❌ Conexión a MongoDB cerrada", file=sys.stderr)
         
 
 def get_database():

@@ -33,7 +33,6 @@ const Polyline = (props: {
       clickable: !!props.onClick
     });
 
-    // Agregar listener de click si existe
     if (props.onClick) {
       polylineRef.current.addListener('click', props.onClick);
     }
@@ -91,7 +90,7 @@ interface MapViewProps {
   onRouteClick?: (index: number) => void;
   incidents?: Incident[];
   favorites?: FavoritePlace[];
-  convoyMembers?: ConvoyMember[]; // New prop
+  convoyMembers?: ConvoyMember[];
   userLocation?: LatLng | null;
   userHeading?: number | null;
   recenterTrigger?: number;
@@ -111,7 +110,7 @@ const MapView: React.FC<MapViewProps> = ({
   alternativeRoutes = [], selectedRouteIndex = 0, onRouteClick,
   incidents = [], favorites = [], convoyMembers = [], searchResults = [],
   userLocation, userHeading, recenterTrigger, mapTypeId = 'roadmap',
-  isRouteMode = false, // Default to false if not provided
+  isRouteMode = false,
   isConvoyActive,
   onMapClick, onIncidentClick, onFavoriteClick, onSearchResultClick,
   userAvatar
@@ -161,7 +160,6 @@ const MapView: React.FC<MapViewProps> = ({
 
         {/* Rutas Alternativas (en gris, clickeables) */}
         {alternativeRoutes.length > 1 && alternativeRoutes.map((altRoute, routeIdx) => {
-          // ... (omitted same as before)
           if (routeIdx === selectedRouteIndex) return null;
           const points = altRoute.coordinates.map(([lng, lat]) => ({ lat, lng }));
           if (points.length < 2) return null;
@@ -195,13 +193,13 @@ const MapView: React.FC<MapViewProps> = ({
             );
           })
         ) : (
-            routePositions.length > 1 && (
+          routePositions.length > 1 && (
             <>
-                <Polyline points={routePositions} options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }} />
-                <Polyline points={routePositions} options={{ strokeColor: '#151b54', strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }} />
-                <Polyline points={routePositions} options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }} />
-              </>
-            )
+              <Polyline points={routePositions} options={{ strokeColor: '#000000', strokeOpacity: 0.15, strokeWeight: 12, zIndex: 10 }} />
+              <Polyline points={routePositions} options={{ strokeColor: '#151b54', strokeOpacity: 1, strokeWeight: 10, zIndex: 11 }} />
+              <Polyline points={routePositions} options={{ strokeColor: '#448aff', strokeOpacity: 1, strokeWeight: 6, zIndex: 12 }} />
+            </>
+          )
         )}
 
         {/* Incidencias */}
@@ -230,11 +228,9 @@ const MapView: React.FC<MapViewProps> = ({
 
         {/* Resultados de Búsqueda */}
         {searchResults.map((result, idx) => {
-          // Solo renderizar si tiene coordenadas válidas (distintas de '0')
           const lat = parseFloat(result.lat);
           const lng = parseFloat(result.lon);
           if (!lat || !lng || (lat === 0 && lng === 0)) return null;
-
           return (
             <AdvancedMarker
               key={result.place_id || idx}
@@ -253,7 +249,7 @@ const MapView: React.FC<MapViewProps> = ({
           );
         })}
 
-        {/* MIEMBROS DEL CONVOY (NUEVO) */}
+        {/* MIEMBROS DEL CONVOY */}
         {convoyMembers.map((member) => (
           member.location && (
             <AdvancedMarker key={member.user_id} position={member.location} zIndex={900}>
@@ -291,45 +287,43 @@ const MapView: React.FC<MapViewProps> = ({
                 </div>
               </div>
             ) : (
-
               isRouteMode ? (
                 <div className="w-14 h-14 flex items-center justify-center" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))', transform: `rotate(${userHeading || 0}deg)`, transition: 'transform 0.5s ease-out' }}>
-                <svg viewBox="0 0 24 24" className="w-full h-full">
-                  <defs>
-                    <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#4285F4" />
-                      <stop offset="100%" stopColor="#1a73e8" />
-                    </linearGradient>
-                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="1" result="blur" />
-                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                    </filter>
-                  </defs>
-                  <path d="M12 2L4 20l8-5 8 5L12 2z" fill="url(#navGradient)" stroke="white" strokeWidth="2" strokeLinejoin="round" filter="url(#glow)" />
-                  <circle cx="12" cy="13" r="3" fill="white" />
-                  <circle cx="12" cy="13" r="2" fill="#4285F4" />
-                </svg>
-              </div>
-            ) : isConvoyActive ? (
-              // Marcador personalizado para Modo Convoy (Soy yo)
-              <div className="flex flex-col items-center">
-                <div className="bg-indigo-600 px-2 py-0.5 rounded-full shadow-md mb-1 border border-indigo-200">
-                  <p className="text-[10px] font-bold text-white whitespace-nowrap">TÚ</p>
+                  <svg viewBox="0 0 24 24" className="w-full h-full">
+                    <defs>
+                      <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#4285F4" />
+                        <stop offset="100%" stopColor="#1a73e8" />
+                      </linearGradient>
+                      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="1" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      </filter>
+                    </defs>
+                    <path d="M12 2L4 20l8-5 8 5L12 2z" fill="url(#navGradient)" stroke="white" strokeWidth="2" strokeLinejoin="round" filter="url(#glow)" />
+                    <circle cx="12" cy="13" r="3" fill="white" />
+                    <circle cx="12" cy="13" r="2" fill="#4285F4" />
+                  </svg>
                 </div>
-                <div className="relative w-8 h-8">
-                  <div className="absolute inset-0 bg-indigo-500/50 rounded-full animate-ping-slow"></div>
-                  <div className="absolute inset-0 bg-indigo-500 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white text-xs font-bold z-10">
-                    You
+              ) : isConvoyActive ? (
+                <div className="flex flex-col items-center">
+                  <div className="bg-indigo-600 px-2 py-0.5 rounded-full shadow-md mb-1 border border-indigo-200">
+                    <p className="text-[10px] font-bold text-white whitespace-nowrap">TÚ</p>
+                  </div>
+                  <div className="relative w-8 h-8">
+                    <div className="absolute inset-0 bg-indigo-500/50 rounded-full animate-ping-slow"></div>
+                    <div className="absolute inset-0 bg-indigo-500 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white text-xs font-bold z-10">
+                      You
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="relative w-6 h-6">
-                <div className="absolute inset-0 bg-blue-500/50 rounded-full animate-ping-slow"></div>
-                <div className="absolute inset-1.5 bg-blue-600 border-2 border-white rounded-full shadow-lg"></div>
-              </div>
-                )
-
+              ) : (
+                /* ⬇️ Punto azul parpadeante (ubicación normal) */
+                <div className="relative w-6 h-6">
+                  <div className="absolute inset-0 bg-blue-500/50 rounded-full animate-ping-slow"></div>
+                  <div className="absolute inset-1.5 bg-blue-600 border-2 border-white rounded-full shadow-lg"></div>
+                </div>
+              )
             )}
           </AdvancedMarker>
         )}

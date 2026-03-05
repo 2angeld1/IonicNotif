@@ -94,7 +94,6 @@ const HomePage: React.FC = () => {
   // Ubicación con suavizado y heading basado en ruta
   const { userLocation, userHeading, handleRecenter, recenterTrigger } = useUserLocation(internalRouteMode, internalRoute);
 
-  // Luego la navegación que usa la ubicación
   const {
     startLocation: sLoc, setStartLocation: setSLoc,
     endLocation: eLoc, setEndLocation: setELoc,
@@ -103,8 +102,28 @@ const HomePage: React.FC = () => {
     isRouteMode: routeMode, setIsRouteMode: setRouteMode,
     isOffRoute: offRoute, isLoading: routeLoading,
     handleCalculateRoute, handleRecalculateRoute,
-    setAlternativeRoutes, handleShareETA
+    setAlternativeRoutes, handleShareETA,
+    waypoints, setWaypoints
   } = useNavigation(userLocation, incidents);
+
+  // Handlers para Waypoints (Manual)
+  const onAddWaypoint = useCallback(() => {
+    setWaypoints(prev => [...prev, { coords: null, name: '' }]);
+  }, [setWaypoints]);
+
+  const onRemoveWaypoint = useCallback((index: number) => {
+    setWaypoints(prev => prev.filter((_, i) => i !== index));
+    setCurrentRoute(null);
+  }, [setWaypoints, setCurrentRoute]);
+
+  const onWaypointChange = useCallback((index: number, coords: LatLng, name: string) => {
+    setWaypoints(prev => {
+      const newWps = [...prev];
+      newWps[index] = { coords, name };
+      return newWps;
+    });
+    setCurrentRoute(null);
+  }, [setWaypoints, setCurrentRoute]);
 
   // Sincronizar ruta y modo para el hook de ubicación
   useEffect(() => {
@@ -139,18 +158,29 @@ const HomePage: React.FC = () => {
     setSearchResults,
     setToast,
     handleCreateIncident,
-    onAutoNavigate: async (destination, name) => {
-      if (!userLocation) {
-        setToast({ show: true, message: 'Se necesita ubicación para ruta automática.' });
+    onAutoNavigate: async (destination, name, originCoords, originName, wps) => {
+      console.log('🏁 [AUTO NAV] Recibido:', { destination, name, originCoords, originName, wps });
+      console.log('📍 [AUTO NAV] GPS Actual:', userLocation);
+
+      // 1. Determinar el inicio de la ruta
+      const startCoords = originCoords || userLocation;
+      const startName = originName || 'Tu ubicación';
+
+      if (!startCoords) {
+        setToast({ show: true, message: 'Se necesita ubicación para la ruta.' });
         return;
       }
+
       // Cerrar Chat
       setIsAIChatOpen(false);
 
       setELoc({ coords: destination, name: name });
-      setSLoc({ coords: userLocation, name: 'Tu ubicación' });
+      setSLoc({ coords: startCoords, name: startName });
 
-      const route = await handleCalculateRoute(userLocation, destination);
+      // Convertir waypoints opcionales (LatLng[]) al formato interno {coords, name}
+      const internalWaypoints = wps ? wps.map(wp => ({ coords: wp, name: 'Parada' })) : [];
+
+      const route = await handleCalculateRoute(startCoords, destination, internalWaypoints);
       if (route) setRouteMode(true);
     }
   });
@@ -279,11 +309,22 @@ const HomePage: React.FC = () => {
                   isLoading={routeLoading}
                   onStartChange={(c, n) => { setSLoc({ coords: c, name: n }); setCurrentRoute(null); }}
                   onEndChange={(c, n) => { setELoc({ coords: c, name: n }); setCurrentRoute(null); }}
+                  waypoints={waypoints}
+                  onWaypointChange={onWaypointChange}
+                  onAddWaypoint={onAddWaypoint}
+                  onRemoveWaypoint={onRemoveWaypoint}
                   onCalculateRoute={onCalculateRoute}
-                  onSwapLocations={() => { const t = { ...sLoc }; setSLoc({ ...eLoc }); setELoc(t); setCurrentRoute(null); }}
+                  onSwapLocations={() => {
+                    const t = { ...sLoc };
+                    setSLoc({ ...eLoc });
+                    setELoc(t);
+                    setCurrentRoute(null);
+                    setWaypoints([...waypoints].reverse()); // Swapping typically reverses route
+                  }}
                   onClear={() => {
                     setSLoc({ coords: null, name: '' });
                     setELoc({ coords: null, name: '' });
+                    setWaypoints([]);
                     setCurrentRoute(null);
                     setAlternativeRoutes([]); // Limpiar rutas alternativas
                     setRouteMode(false);
@@ -419,6 +460,7 @@ const HomePage: React.FC = () => {
             onReportIncident={handleAIChatReportIncident}
             onCheckWeather={handleAIChatCheckWeather}
             onPlaceDetails={handleAIChatPlaceDetails}
+            isHiveConnected={apiAvailable}
           />
 
           <IncidentModal
