@@ -41,7 +41,7 @@ class InvoiceService:
                 raise ValueError("GEMINI_API_KEY no está configurada en .env")
             
             genai.configure(api_key=api_key)
-            cls._model = genai.GenerativeModel("gemini-2.0-flash")
+            cls._model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
             print("🤖 InvoiceService: Gemini Flash inicializado.")
         return cls._model
 
