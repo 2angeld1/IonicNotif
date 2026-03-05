@@ -33,11 +33,11 @@ export const useNavigation = (
   const handleCalculateRoute = useCallback(async (
     start?: LatLng,
     end?: LatLng,
-    wps: { coords: LatLng | null; name: string }[] = []
+    wps?: { coords: LatLng | null; name: string }[]
   ) => {
     const s = start || startLocation.coords;
     const e = end || endLocation.coords;
-    const currentWps = wps.length > 0 ? wps : waypoints;
+    const currentWps = wps !== undefined ? wps : waypoints;
 
     if (!s || !e) return null;
 
@@ -105,6 +105,7 @@ export const useNavigation = (
         setRoute(enrichedAlternatives[0]); // Seleccionar la mejor según ML
         setIsOffRoute(false);
         offRouteCounterRef.current = 0;
+        setWaypoints(currentWps);
 
         return enrichedAlternatives[0];
       } else {
@@ -117,6 +118,7 @@ export const useNavigation = (
           setMlRecommendedIndex(null);
           setIsOffRoute(false);
           offRouteCounterRef.current = 0;
+          setWaypoints(currentWps);
         }
         return result;
       }

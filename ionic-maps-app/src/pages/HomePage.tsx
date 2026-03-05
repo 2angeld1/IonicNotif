@@ -392,6 +392,7 @@ const HomePage: React.FC = () => {
                 // setSearchResults([]);
               }}
               userAvatar={userAvatar}
+              waypoints={waypoints}
             />
           </div>
 

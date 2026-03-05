@@ -103,6 +103,7 @@ interface MapViewProps {
   searchResults?: LocationSuggestion[];
   onSearchResultClick?: (result: LocationSuggestion) => void;
   userAvatar?: { type: string; color: string };
+  waypoints?: { coords: LatLng | null; name: string }[];
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -113,7 +114,8 @@ const MapView: React.FC<MapViewProps> = ({
   isRouteMode = false,
   isConvoyActive,
   onMapClick, onIncidentClick, onFavoriteClick, onSearchResultClick,
-  userAvatar
+  userAvatar,
+  waypoints = []
 }) => {
   const routePositions = useMemo(() => {
     return route ? route.coordinates.map(([lng, lat]) => ({ lat, lng })) : [];
@@ -157,6 +159,21 @@ const MapView: React.FC<MapViewProps> = ({
         {end && !favorites.some(f => f.location.lat === end.lat && f.location.lng === end.lng) && (
           <AdvancedMarker position={end}>{renderCustomMarker('#ef4444')}</AdvancedMarker>
         )}
+
+        {/* Marcadores de Waypoints */}
+        {waypoints.map((wp, idx) => {
+          if (!wp.coords) return null;
+          // Evitar duplicados con inicio/fin si están muy cerca
+          const isStart = start && Math.abs(wp.coords.lat - start.lat) < 0.0001 && Math.abs(wp.coords.lng - start.lng) < 0.0001;
+          const isEnd = end && Math.abs(wp.coords.lat - end.lat) < 0.0001 && Math.abs(wp.coords.lng - end.lng) < 0.0001;
+          if (isStart || isEnd) return null;
+
+          return (
+            <AdvancedMarker key={`wp-${idx}`} position={wp.coords}>
+              {renderCustomMarker('#f97316')}
+            </AdvancedMarker>
+          );
+        })}
 
         {/* Rutas Alternativas (en gris, clickeables) */}
         {alternativeRoutes.length > 1 && alternativeRoutes.map((altRoute, routeIdx) => {
