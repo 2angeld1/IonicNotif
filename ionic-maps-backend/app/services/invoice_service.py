@@ -18,18 +18,19 @@ class InvoiceService:
 
     SYSTEM_PROMPT = (
         "Eres un asistente de inventario de restaurante. "
-        "Recibirás la imagen de una factura o ticket de compra. "
-        "Tu tarea es extraer TODOS los productos listados con su cantidad, unidad, nombre y precio unitario. "
+        "Recibirás una imagen. PRIMERA REGLA: Verifica si la imagen es realmente una factura, recibo o ticket de compra. "
+        "Si NO es una factura (ej. una persona, paisaje, objeto random, etc.), responde EXACTAMENTE y ÚNICAMENTE con este JSON: "
+        '{"error": "not_an_invoice"}\n\n'
+        "Si SÍ es una factura, extrae TODOS los productos listados con su cantidad, unidad, nombre y precio unitario. "
         "Responde ÚNICAMENTE con un JSON array válido, sin texto adicional, sin markdown, sin backticks. "
         "Cada elemento del array debe tener esta estructura exacta:\n"
         '{"nombre": "string", "cantidad": number, "unidad": "string", "precioUnitario": number}\n\n'
         "Reglas:\n"
         "- Si la unidad no es clara, usa 'unidades'.\n"
         "- Si el precio unitario no es visible pero hay un total y cantidad, calcula el unitario.\n"
-        "- El nombre debe ser descriptivo pero corto (ej: 'Aceite de oliva 1L', 'Tomate cherry').\n"
+        "- El nombre debe ser descriptivo pero corto.\n"
         "- No incluyas impuestos, totales ni información del negocio.\n"
         "- Si no puedes leer algún campo, usa null.\n"
-        "- SIEMPRE responde con el JSON array, incluso si está vacío: []\n"
     )
 
     @classmethod
@@ -95,6 +96,14 @@ class InvoiceService:
             # Parsear la respuesta JSON
             productos = cls._parse_response(raw_text)
             
+            if isinstance(productos, dict) and productos.get("error") == "not_an_invoice":
+                return {
+                    "success": False,
+                    "productos": [],
+                    "total_detectados": 0,
+                    "error": "La imagen proporcionada no parece ser una factura, recibo o ticket de compra válido."
+                }
+            
             return {
                 "success": True,
                 "productos": productos,
@@ -120,15 +129,17 @@ class InvoiceService:
             }
 
     @classmethod
-    def _parse_response(cls, raw_text: str) -> list:
+    def _parse_response(cls, raw_text: str) -> list | dict:
         """
         Intenta parsear la respuesta de Gemini como JSON.
-        Maneja casos donde Gemini envuelve el JSON en markdown.
+        Maneja casos donde Gemini envuelve el JSON en markdown y detecta errores.
         """
         # Intentar parseo directo
         try:
             result = json.loads(raw_text)
             if isinstance(result, list):
+                return result
+            elif isinstance(result, dict) and "error" in result:
                 return result
         except json.JSONDecodeError:
             pass
@@ -139,6 +150,8 @@ class InvoiceService:
             try:
                 result = json.loads(json_match.group(1).strip())
                 if isinstance(result, list):
+                    return result
+                elif isinstance(result, dict) and "error" in result:
                     return result
             except json.JSONDecodeError:
                 pass
