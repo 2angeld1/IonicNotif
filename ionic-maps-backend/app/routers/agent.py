@@ -21,6 +21,7 @@ class InvoiceRequest(BaseModel):
 class InvoiceResponse(BaseModel):
     success: bool
     productos: list
+    fiscal: Optional[dict] = None
     total_detectados: int
     raw_response: Optional[str] = None
     error: Optional[str] = None

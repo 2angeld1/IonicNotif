@@ -17,20 +17,34 @@ class InvoiceService:
     _model = None
 
     SYSTEM_PROMPT = (
-        "Eres un asistente de inventario de restaurante. "
+        "Eres un asistente de contabilidad e inventario para restaurantes en Panamá. "
         "Recibirás una imagen. PRIMERA REGLA: Verifica si la imagen es realmente una factura, recibo o ticket de compra. "
         "Si NO es una factura (ej. una persona, paisaje, objeto random, etc.), responde EXACTAMENTE y ÚNICAMENTE con este JSON: "
         '{"error": "not_an_invoice"}\n\n'
-        "Si SÍ es una factura, extrae TODOS los productos listados con su cantidad, unidad, nombre y precio unitario. "
-        "Responde ÚNICAMENTE con un JSON array válido, sin texto adicional, sin markdown, sin backticks. "
-        "Cada elemento del array debe tener esta estructura exacta:\n"
-        '{"nombre": "string", "cantidad": number, "unidad": "string", "precioUnitario": number}\n\n'
+        "Si SÍ es una factura, extrae la información fiscal y TODOS los productos listados. "
+        "Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown. "
+        "La estructura debe ser exactamente esta:\n"
+        "{\n"
+        '  "fiscal": {\n'
+        '    "proveedor": "string o null",\n'
+        '    "ruc": "string o null (formato RUC de Panamá)",\n'
+        '    "dv": "string o null (dígito verificador)",\n'
+        '    "nroFactura": "string o null",\n'
+        '    "fecha": "ISO date string o null",\n'
+        '    "subtotal": number,\n'
+        '    "itbms": number (7% típicamente),\n'
+        '    "total": number\n'
+        "  },\n"
+        '  "productos": [\n'
+        '    {"nombre": "string", "cantidad": number, "unidad": "string", "precioUnitario": number}\n'
+        "  ]\n"
+        "}\n\n"
         "Reglas:\n"
         "- Si la unidad no es clara, usa 'unidades'.\n"
         "- Si el precio unitario no es visible pero hay un total y cantidad, calcula el unitario.\n"
-        "- El nombre debe ser descriptivo pero corto.\n"
-        "- No incluyas impuestos, totales ni información del negocio.\n"
-        "- Si no puedes leer algún campo, usa null.\n"
+        "- El nombre del producto debe ser descriptivo pero corto.\n"
+        "- El campo 'itbms' es el impuesto (7%). Si no está desglosado pero el total es mayor al subtotal, calcúlalo.\n"
+        "- Si no puedes leer algún campo físico o fiscal, usa null.\n"
     )
 
     @classmethod
@@ -94,9 +108,9 @@ class InvoiceService:
             print(f"📝 Gemini respondió: {raw_text[:200]}...")
             
             # Parsear la respuesta JSON
-            productos = cls._parse_response(raw_text)
+            extracted_data = cls._parse_response(raw_text)
             
-            if isinstance(productos, dict) and productos.get("error") == "not_an_invoice":
+            if isinstance(extracted_data, dict) and extracted_data.get("error") == "not_an_invoice":
                 return {
                     "success": False,
                     "productos": [],
@@ -104,9 +118,18 @@ class InvoiceService:
                     "error": "La imagen proporcionada no parece ser una factura, recibo o ticket de compra válido."
                 }
             
+            # Si el parseo falló o devolvió un formato viejo (lista), normalizar
+            if isinstance(extracted_data, list):
+                productos = extracted_data
+                fiscal = {}
+            else:
+                productos = extracted_data.get("productos", [])
+                fiscal = extracted_data.get("fiscal", {})
+            
             return {
                 "success": True,
                 "productos": productos,
+                "fiscal": fiscal,
                 "total_detectados": len(productos),
                 "raw_response": raw_text
             }
@@ -137,9 +160,7 @@ class InvoiceService:
         # Intentar parseo directo
         try:
             result = json.loads(raw_text)
-            if isinstance(result, list):
-                return result
-            elif isinstance(result, dict) and "error" in result:
+            if isinstance(result, (list, dict)):
                 return result
         except json.JSONDecodeError:
             pass
