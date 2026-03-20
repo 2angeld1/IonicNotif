@@ -15,16 +15,15 @@ class BusinessService:
     KITCHY_URL = os.getenv("KITCHY_API_URL", "http://localhost:5000/api")
 
     SYSTEM_PROMPT = (
-        "Eres Caitlyn, la consultora de negocios experta y proactiva de Kitchy. "
-        "Tu misión es ayudar al dueño de un restaurante/barbería a tomar mejores decisiones financieras. "
-        "Recibirás un JSON con el DESGLOSE DE COSTOS reales de un producto (insumos, precio actual, margen). "
+        "Eres Caitlyn, la consultora de negocios proactiva de Kitchy en Panamá. "
+        "Tu misión es ayudar al dueño a tomar mejores decisiones financieras. "
+        "Recibirás un ANALISIS LOCAL (Panamá) y datos del NEGOCIO (Costos, Margen, Ventas). "
         "REGLAS DE ORO:\n"
-        "1. Sé amigable, profesional y directa. Habla como una socia estratégica.\n"
-        "2. Analiza si el margen actual es saludable (Ideal: >60%).\n"
-        "3. Si el margen es bajo, sugiere aumentar el precio basándote en las sugerencias del JSON.\n"
-        "4. Si hay algún insumo que pese mucho en el costo, menciónalo.\n"
-        "5. No respondas con JSON, responde con un mensaje humano, motivador y con datos claros.\n"
-        "6. Mantén la respuesta corta y accionable (máximo 2 párrafos).\n"
+        "1. Sé amigable y directa. Habla como una socia estratégica de confianza.\n"
+        "2. ANALIZA EL MARGEN: Si es < 60%, advierte que la rentabilidad está en riesgo.\n"
+        "3. USA EL CONTEXTO: Si mi ANALISIS LOCAL indica alza en gasolina o Merca Panamá, úsalo para justificar cambios de precio.\n"
+        "4. No respondas con JSON. Da un consejo humano, claro y con DATOS REALES del JSON.\n"
+        "5. Sé proactiva: Si hay lluvia, recomienda delivery. Si hay costos altos, recomienda ajustar precios.\n"
     )
 
     @classmethod
@@ -39,81 +38,112 @@ class BusinessService:
         return cls._model
 
     @classmethod
-    async def get_advice(cls, product_name: str, token: str) -> dict:
+    def analyze_market_impact(cls, market_context: dict, business_data: dict) -> str:
         """
-        Consulta Kitchy, pregunta a Gemini y devuelve el consejo.
+        RAZONAMIENTO LOCAL: Caitlyn predice el impacto sin usar tokens de Gemini.
+        """
+        analysis = []
+        
+        # 1. Análisis de Combustible (SNE Panamá)
+        fuel = market_context.get('FUEL', {})
+        if fuel.get('octane95', 0) > 1.10:
+            analysis.append(f"⛽ Gasolina a ${fuel.get('octane95')}: Sube tus costos de envío en un 5-8%.")
+
+        # 2. Análisis de Merca Panamá vs Ingredientes
+        merca = market_context.get('MERCA', {}).get('vegetales', {})
+        ingredientes = business_data.get('ingredientes', [])
+        for ing in ingredientes:
+            name = ing.get('nombre', '').lower()
+            if 'cebolla' in name and merca.get('cebolla', 0) > 0.80:
+                analysis.append("🧅 Cebolla cara en Merca: Tu plato de cebolla tiene margen bajo ahora.")
+
+        # 3. Análisis de Clima (PROACTIVO 5 DÍAS)
+        weather_context = market_context.get('WEATHER', {})
+        forecast = weather_context.get('forecast', [])
+        
+        rainy_days = [d for d in forecast if d.get('lluviaProb', 0) > 60]
+        if rainy_days:
+            show_dates = []
+            for d in rainy_days:
+                if len(show_dates) < 2:
+                    show_dates.append(str(d.get('fecha')))
+            dates_str = ", ".join(show_dates)
+            analysis.append(f"🌧️ Pronóstico de Lluvia: Se esperan lluvias fuertes para {dates_str}. Planifica promociones de delivery para esos días.")
+        elif forecast:
+            analysis.append("☀️ Clima favorable para los próximos días. Buen momento para eventos en mesa.")
+
+        return "\n".join(analysis) if analysis else "Mercado estable."
+
+    @classmethod
+    async def get_strategic_advice(cls, payload: dict) -> dict:
+        """
+        CONSEJO ESTRATÉGICO: Une los puntos entre costos y Panamá.
         """
         try:
-            # 1. Consultar a Kitchy (El Motor de Datos)
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = {"Authorization": f"Bearer {token}"}
-                response = await client.get(
-                    f"{cls.KITCHY_URL}/agente/costeo/{product_name}",
-                    headers=headers
+            product_name = payload.get('product_name', 'tus productos')
+            market_context = payload.get('market_context', {})
+            business_data = payload.get('business_data', {})
+
+            # 1. Análisis frío de Caitlyn
+            caitlyn_insight = cls.analyze_market_impact(market_context, business_data)
+
+            # 2. IA para la Voz y el Consejo Final
+            advice_text = ""
+            try:
+                model = cls._get_model()
+                prompt = (
+                    f"Angel tiene este producto: {product_name}.\n"
+                    f"DATOS RELEVANTES: {business_data}\n"
+                    f"CONTEXTO PANAMÁ HOY: {caitlyn_insight}\n\n"
+                    "Genera el consejo de socia estratégica."
                 )
                 
-                if response.status_code != 200:
-                    return {
-                        "success": False,
-                        "message": f"Caitlyn: 'Lo siento Angel, no encontré el producto {product_name} en tu menú de Kitchy.'",
-                        "error": "not_found"
-                    }
-                
-                costing_data = response.json()
+                ai_response = model.generate_content([cls.SYSTEM_PROMPT, prompt])
+                advice_text = ai_response.text.strip()
+            except Exception as e:
+                # FALLBACK Proactivo: Caitlyn usa su propio razonamiento si la IA falla.
+                print(f"⚠️ Alerta: Usando razonamiento local de Caitlyn (Gemini offline).")
+                advice_text = (
+                    f"Hola Angel, por ahora no puedo contactar con la central, pero he analizado tus números "
+                    f"y la realidad del país: \n\n{caitlyn_insight}\n\n"
+                    "Te sugiero revisar tus precios pronto."
+                )
             
-            # 2. Consultar a Gemini (El Cerebro)
-            model = cls._get_model()
-            prompt = (
-                f"Aquí tienes los datos de {product_name}:\n{costing_data}\n\n"
-                "¿Qué consejo le darías al dueño?"
-            )
-            
-            ai_response = model.generate_content([cls.SYSTEM_PROMPT, prompt])
-            advice_text = ai_response.text.strip()
-
             return {
                 "success": True,
                 "message": advice_text,
-                "data": costing_data
+                "caitlyn_reasoning": caitlyn_insight # Esto lo usaremos para el Punto 1
             }
-
         except Exception as e:
-            print(f"💥 BusinessService error: {e}")
-            return {
-                "success": False,
-                "message": "Caitlyn: 'Hubo un error al conectar con mis motores de análisis financiero.'",
-                "error": str(e)
-            }
+            return {"success": False, "message": "Error estratégico", "error": str(e)}
+
+    @classmethod
+    async def get_advice(cls, product_name: str, token: str) -> dict:
+        # Mantenemos este por compatibilidad LEGACY si se llama desde otros sitios
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = {"Authorization": f"Bearer {token}"}
+                response = await client.get(f"{cls.KITCHY_URL}/agente/costeo/{product_name}", headers=headers)
+                if response.status_code != 200:
+                    return {"success": False, "message": "Producto no encontrado."}
+                costing_data = response.json()
+            
+            model = cls._get_model()
+            prompt = f"Datos de {product_name}:\n{costing_data}\nConsejo pro?"
+            ai_response = model.generate_content([cls.SYSTEM_PROMPT, prompt])
+            return {"success": True, "message": ai_response.text.strip(), "data": costing_data}
+        except Exception as e:
+            return {"success": False, "message": "Error", "error": str(e)}
 
     @classmethod
     async def get_dashboard_summary(cls, alerts: list) -> dict:
-        """
-        Genera un resumen proactivo de tablero (Dashboard) cuando hay productos fuera de rentabilidad.
-        """
+        # Resumen proactivo de Dashboard (Simplificado)
         try:
             if not alerts:
-                return {"success": True, "message": "¡Todo excelente Angel! Tus márgenes están impecables."}
-            
+                return {"success": True, "message": "¡Todo excelente! Márgenes saludables."}
             model = cls._get_model()
-            prompt = (
-                f"Angel, el usuario, tiene estos {len(alerts)} productos por debajo de su margen objetivo. Algunos son: {[a.get('nombre') for a in alerts[:2]]}.\n\n"
-                "Instrucciones ESTRICTAS para Caitlyn:\n"
-                "- Escribe UN SOLO PÁRRAFO de MÁXIMO 2 ORACIONES (menos de 20 palabras).\n"
-                "- Sé empática, rápida y al grano.\n"
-                "- Ejemplo del tono: 'Angel, tienes 3 productos (como la Hamburguesa) perdiendo dinero. Confirma abajo y yo actualizaré los precios para recuperar tu rentabilidad.'\n"
-                "- No des explicaciones largas ni uses viñetas."
-            )
-            
+            prompt = f"Tengo {len(alerts)} alertas de rentabilidad. Haz un resumen rápido de impacto."
             ai_response = model.generate_content([cls.SYSTEM_PROMPT, prompt])
-            advice_text = ai_response.text.strip()
-            
-            return {
-                "success": True,
-                "message": advice_text
-            }
+            return {"success": True, "message": ai_response.text.strip()}
         except Exception as e:
-            print(f"💥 BusinesService Dashboard Error: {e}")
-            return {
-                "success": False,
-                "message": f"Caitlyn dice: 'Tengo los números, pero mi módulo de voz falló. Revisa abajo los detalles. ERROR: {e}'"
-            }
+            return {"success": False, "message": "Error", "error": str(e)}

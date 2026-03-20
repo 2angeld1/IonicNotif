@@ -45,17 +45,26 @@ async def parse_intent(request: AgentRequest):
     )
     return result
 
-@router.post("/invoice", response_model=InvoiceResponse)
+from fastapi.responses import JSONResponse
+
+@router.post("/invoice")
 async def process_invoice(request: InvoiceRequest):
     """
     Endpoint para procesar facturas con Gemini Flash Vision.
     Recibe una imagen base64 y devuelve los productos detectados.
     """
     result = await InvoiceService.process_invoice(request.imagen)
-    return result
+    # 🏁 BLINDAJE DE TILDES: Forzamos UTF-8 puro sin escapes ASCII
+    return JSONResponse(content=result)
 
 class DashboardAlertsRequest(BaseModel):
     alerts: list
+
+class StrategicAdviceRequest(BaseModel):
+    product_name: Optional[str] = None
+    market_context: dict
+    business_data: dict
+    config: Optional[dict] = None
 
 @router.post("/business/dashboard-alerts")
 async def get_dashboard_summary(request: DashboardAlertsRequest):
@@ -63,6 +72,14 @@ async def get_dashboard_summary(request: DashboardAlertsRequest):
     Caitlyn genera un resumen a partir de las alertas de rentabilidad pasadas por la app.
     """
     result = await BusinessService.get_dashboard_summary(request.alerts)
+    return result
+
+@router.post("/business/advice")
+async def get_strategic_advice(request: StrategicAdviceRequest):
+    """
+    Endpoint maestro: Recibe el contexto de Panamá y datos de negocio para un análisis proactivo.
+    """
+    result = await BusinessService.get_strategic_advice(request.dict())
     return result
 
 @router.get("/business/advice")

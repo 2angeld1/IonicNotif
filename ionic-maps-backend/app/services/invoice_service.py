@@ -45,6 +45,7 @@ class InvoiceService:
         "- Si el precio unitario no es visible pero hay un total y cantidad, calcula el unitario.\n"
         "- El nombre del producto debe ser descriptivo pero corto.\n"
         "- El campo 'itbms' es el impuesto (7%). Si no está desglosado pero el total es mayor al subtotal, calcúlalo.\n"
+        "- IMPORTANTE: Responde en español y usa tildes reales (UTF-8). NO uses códigos de escape como \\u00f3.\n"
         "- Si no puedes leer algún campo físico o fiscal, usa null.\n"
     )
 
