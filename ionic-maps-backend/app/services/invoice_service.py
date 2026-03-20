@@ -37,10 +37,17 @@ class InvoiceService:
         '    "total": number\n'
         "  },\n"
         '  "productos": [\n'
-        '    {"nombre": "string", "cantidad": number, "unidad": "string", "precioUnitario": number}\n'
-        "  ]\n"
+        '    {\n'
+        '      "nombre": "string", \n'
+        '      "cantidad": number, \n'
+        '      "unidad": "string (ej: Caja, Bolsa, lb, ud)", \n'
+        '      "unidadesPorEmpaque": number (ej: si es Caja x 12, pon 12. Por defecto 1),\n'
+        '      "precioUnitario": number (el precio del empaque total segun factura)\n'
+        '    }\n'
+        '  ]\n'
         "}\n\n"
         "Reglas:\n"
+        "- Si el nombre indica un pack o contenido (ej: 'Sodas x 12', 'Pack 6uds', 'Caja 24'), extrae el número en 'unidadesPorEmpaque'.\n"
         "- Si la unidad no es clara, usa 'unidades'.\n"
         "- Si el precio unitario no es visible pero hay un total y cantidad, calcula el unitario.\n"
         "- El nombre del producto debe ser descriptivo pero corto.\n"

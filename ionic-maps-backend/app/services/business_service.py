@@ -6,6 +6,7 @@ Gemini Flash para dar un consejo estratégico sobre precios y rentabilidad.
 import os
 import httpx
 import google.generativeai as genai
+import json
 from typing import Optional
 
 class BusinessService:
@@ -16,14 +17,12 @@ class BusinessService:
 
     SYSTEM_PROMPT = (
         "Eres Caitlyn, la consultora de negocios proactiva de Kitchy en Panamá. "
-        "Tu misión es ayudar al dueño a tomar mejores decisiones financieras. "
-        "Recibirás un ANALISIS LOCAL (Panamá) y datos del NEGOCIO (Costos, Margen, Ventas). "
-        "REGLAS DE ORO:\n"
-        "1. Sé amigable y directa. Habla como una socia estratégica de confianza.\n"
-        "2. ANALIZA EL MARGEN: Si es < 60%, advierte que la rentabilidad está en riesgo.\n"
-        "3. USA EL CONTEXTO: Si mi ANALISIS LOCAL indica alza en gasolina o Merca Panamá, úsalo para justificar cambios de precio.\n"
-        "4. No respondas con JSON. Da un consejo humano, claro y con DATOS REALES del JSON.\n"
-        "5. Sé proactiva: Si hay lluvia, recomienda delivery. Si hay costos altos, recomienda ajustar precios.\n"
+        "REGLAS DE ORO (TRABAJO PARA DUEÑOS OCUPADOS):\n"
+        "1. BREVEDAD EXTREMA: Tu respuesta DEBE ser de máximo 2 o 3 frases cortas. ⚡\n"
+        "2. PUNCHY & EMOJIS: Usa 1 o 2 emojis. Ve directo al grano sin introducciones.\n"
+        "3. ACCIÓN INMEDIATA: Dime qué hacer (ej: 'Sube $0.50 a la Hamburguesa, el costo del pan subió').\n"
+        "4. SIN RELLENO: No menciones leyes o informes generales si no afectan directamente al dueño hoy.\n"
+        "5. Sé amigable pero ejecutiva. Habla como una socia que tiene 10 segundos para dar un consejo. 🤝\n"
     )
 
     @classmethod
@@ -116,6 +115,41 @@ class BusinessService:
             }
         except Exception as e:
             return {"success": False, "message": "Error estratégico", "error": str(e)}
+
+    @classmethod
+    async def suggest_recipe(cls, dish_name: str, inventory_list: list) -> dict:
+        """
+        Actúa como un Chef Ejecutivo. Recibe un plato y sugiere una receta
+        basada exclusivamente en los artículos que existen en el inventario.
+        """
+        # Formatear inventario para que la IA lo vea claro
+        inv_text = "\n".join([f"- {i.get('nombre')} (ID: {i.get('_id')}, Unidad: {i.get('unidad')})" for i in inventory_list])
+
+        prompt = (
+            f"Eres un Chef Ejecutivo experto en la región de Panamá. Un restaurante quiere crear el plato: '{dish_name}'.\n"
+            f"Basado SOLAMENTE en esta lista de inventario disponible:\n{inv_text}\n\n"
+            f"Sugiere los ingredientes necesarios para UNA PORCIÓN de este plato.\n"
+            f"REGLAS:\n"
+            f"1. Devuelve un JSON con la estructura: {{ 'ingredientes': [{{ 'inventario': 'ID', 'cantidad': X, 'unidad': 'X', 'nombre': 'X' }}] }}\n"
+            f"2. Usa cantidades lógicas para una ración (ej: 0.5 libras, 1 unidad, etc.).\n"
+            f"3. Si un ingrediente obvio no está en la lista, NO LO INVENTES. Solo usa lo que hay.\n"
+            f"Responde SOLO el JSON."
+        )
+
+        try:
+            model = cls._get_model()
+            response = await model.generate_content_async(prompt)
+            raw_text = response.text.strip()
+            
+            # Limpiar markdown si existe
+            if "```json" in raw_text:
+                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+
+            recipe = json.loads(raw_text)
+            return { "success": True, "recipe": recipe.get('ingredientes', []) }
+        except Exception as e:
+            print(f"Error suggesting recipe: {e}")
+            return { "success": False, "error": str(e) }
 
     @classmethod
     async def get_advice(cls, product_name: str, token: str) -> dict:

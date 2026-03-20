@@ -75,12 +75,16 @@ async def get_dashboard_summary(request: DashboardAlertsRequest):
     return result
 
 @router.post("/business/advice")
-async def get_strategic_advice(request: StrategicAdviceRequest):
-    """
-    Endpoint maestro: Recibe el contexto de Panamá y datos de negocio para un análisis proactivo.
-    """
-    result = await BusinessService.get_strategic_advice(request.dict())
-    return result
+async def get_strategic_advice(payload: dict):
+    return await BusinessService.get_strategic_advice(payload)
+
+@router.post("/recipe/suggest")
+async def suggest_recipe(payload: dict):
+    dish_name = payload.get("dish_name")
+    inventory_list = payload.get("inventory", [])
+    if not dish_name:
+        return {"success": False, "error": "Falta el nombre del plato"}
+    return await BusinessService.suggest_recipe(dish_name, inventory_list)
 
 @router.get("/business/advice")
 async def get_business_advice(product_name: str, authorization: str = Header(...)):
