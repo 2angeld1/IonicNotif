@@ -7,6 +7,7 @@ import os
 import httpx
 import google.generativeai as genai
 import json
+import math
 from typing import Optional
 
 class BusinessService:
@@ -117,22 +118,24 @@ class BusinessService:
             return {"success": False, "message": "Error estratégico", "error": str(e)}
 
     @classmethod
-    async def suggest_recipe(cls, dish_name: str, inventory_list: list) -> dict:
+    async def suggest_recipe(cls, dish_name: str, inventory_list: list, serving_size: Optional[str] = None) -> dict:
         """
         Actúa como un Chef Ejecutivo. Recibe un plato y sugiere una receta
         basada exclusivamente en los artículos que existen en el inventario.
+        Calcula también el costo total y el precio sugerido (65% margen).
         """
-        # Formatear inventario para que la IA lo vea claro
-        inv_text = "\n".join([f"- {i.get('nombre')} (ID: {i.get('_id')}, Unidad: {i.get('unidad')})" for i in inventory_list])
+        # Formatear inventario con stock y COSTO para que la IA lo sepa
+        inv_text = "\n".join([f"- {i.get('nombre')} (ID: {i.get('_id')}, Unidad: {i.get('unidad')}, Costo: ${i.get('costoUnitario', 0)}, Stock: {i.get('cantidad')})" for i in inventory_list])
 
         prompt = (
-            f"Eres un Chef Ejecutivo experto en la región de Panamá. Un restaurante quiere crear el plato: '{dish_name}'.\n"
-            f"Basado SOLAMENTE en esta lista de inventario disponible:\n{inv_text}\n\n"
-            f"Sugiere los ingredientes necesarios para UNA PORCIÓN de este plato.\n"
+            f"Eres un Chef Ejecutivo experto. El plato es: '{dish_name}'.\n"
+            f"TAMAÑO DE LA PORCIÓN: {serving_size if serving_size else '1 unidad por defecto'}.\n"
+            f"Analiza este inventario disponible:\n{inv_text}\n\n"
+            f"Sugiere los ingredientes necesarios para este plato respetando el TAMAÑO DE LA PORCIÓN.\n"
             f"REGLAS:\n"
-            f"1. Devuelve un JSON con la estructura: {{ 'ingredientes': [{{ 'inventario': 'ID', 'cantidad': X, 'unidad': 'X', 'nombre': 'X' }}] }}\n"
-            f"2. Usa cantidades lógicas para una ración (ej: 0.5 libras, 1 unidad, etc.).\n"
-            f"3. Si un ingrediente obvio no está en la lista, NO LO INVENTES. Solo usa lo que hay.\n"
+            f"1. Devuelve un JSON con la estructura: \n"
+            f"   {{ 'ingredientes': [{{ 'inventario': 'ID o null', 'cantidad': X, 'unidad': 'X', 'nombre': 'X', 'stock_status': 'ok|bajo|falta', 'is_missing': boolean }}] }}\n"
+            f"2. 'is_missing': solo si es esencial pero no existe en inventario.\n"
             f"Responde SOLO el JSON."
         )
 
@@ -145,8 +148,66 @@ class BusinessService:
             if "```json" in raw_text:
                 raw_text = raw_text.split("```json")[1].split("```")[0].strip()
 
-            recipe = json.loads(raw_text)
-            return { "success": True, "recipe": recipe.get('ingredientes', []) }
+            recipe_data = json.loads(raw_text)
+            recipe_ingredients = recipe_data.get('ingredientes', [])
+
+            # CÁLCULO MATEMÁTICO DETERMINÍSTICO (Cero errores de IA 🧮)
+            costo_total = 0.0
+            print(f"\n🔬 [CAITLYN] Calculando costeo para: {dish_name} ({serving_size if serving_size else 'Default'})")
+            
+            for ing in recipe_ingredients:
+                inv_id = ing.get('inventario')
+                try:
+                    cantidad = float(ing.get('cantidad', 0))
+                except (ValueError, TypeError):
+                    cantidad = 0.0
+                
+                # Buscar el item en inventory_list para sacar su costo real
+                inv_item = next((i for i in inventory_list if str(i.get('_id')) == str(inv_id)), None)
+                if inv_item:
+                    try:
+                        costo_u = float(inv_item.get('costoUnitario', 0))
+                    except (ValueError, TypeError):
+                        costo_u = 0.0
+                    
+                    # ⚖️ NORMALZACIÓN DE UNIDADES INTELIGENTE
+                    inv_u = str(inv_item.get('unidad', '')).lower()
+                    ing_u = str(ing.get('unidad', '')).lower()
+                    
+                    # CASO 1: Receta en ml/gr pero Inventario en L/Kg o Unidad
+                    # Si me pides 220ml de algo que registro por litro o botella, divido
+                    needs_normalization = False
+                    if ('ml' in ing_u or 'gr' in ing_u) and ('ml' not in inv_u and 'gr' not in inv_u):
+                        needs_normalization = True
+                    
+                    # CASO 2: Cantidad masiva (>10) en ítem de bulto
+                    elif (('litro' in inv_u or 'kg' in inv_u or 'kilo' in inv_u) and cantidad >= 10):
+                        needs_normalization = True
+
+                    if needs_normalization:
+                        original_qty = cantidad
+                        cantidad = cantidad / 1000
+                        print(f"     ⚖️ NORMALIZADO: {ing.get('nombre')} ({ing_u} -> {inv_u}) | {original_qty} -> {cantidad}")
+                        
+                    subtotal = cantidad * costo_u
+                    print(f"   ✅ {ing.get('nombre')}: {cantidad} x ${costo_u} ({inv_u}) = ${round(subtotal, 4)}")
+                    
+                    ing['costoSubtotal'] = round(subtotal, 2)
+                    costo_total += subtotal
+                else:
+                    print(f"   ⚠️ {ing.get('nombre')} NO está en tu inventario (Costo 0)")
+                    ing['costoSubtotal'] = 0.0
+            
+            # Margen del 65% (Precio = Costo / 0.35)
+            precio_sugerido = math.ceil(costo_total / 0.35) if costo_total > 0 else 0
+            print(f"📊 RESULTADO FINAL: Costo ${round(costo_total, 2)} -> Sugerido ${precio_sugerido}\n")
+
+            return { 
+                "success": True, 
+                "recipe": recipe_ingredients,
+                "costoTotal": round(float(costo_total), 2),
+                "precioSugerido": int(precio_sugerido)
+            }
         except Exception as e:
             print(f"Error suggesting recipe: {e}")
             return { "success": False, "error": str(e) }

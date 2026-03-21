@@ -33,11 +33,11 @@ This repository is divided into two main parts:
 ### 1. Backend Setup
 ```bash
 cd ionic-maps-backend
-python -m venv venv
+python -m venv .venv
 # Windows:
-venv\Scripts\activate
+.venv\Scripts\activate
 # Linux/Mac:
-source venv/bin/activate
+source .venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env  # Configure your MongoDB and API keys

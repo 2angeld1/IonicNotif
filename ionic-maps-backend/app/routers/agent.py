@@ -82,9 +82,10 @@ async def get_strategic_advice(payload: dict):
 async def suggest_recipe(payload: dict):
     dish_name = payload.get("dish_name")
     inventory_list = payload.get("inventory", [])
+    serving_size = payload.get("serving_size")
     if not dish_name:
         return {"success": False, "error": "Falta el nombre del plato"}
-    return await BusinessService.suggest_recipe(dish_name, inventory_list)
+    return await BusinessService.suggest_recipe(dish_name, inventory_list, serving_size)
 
 @router.get("/business/advice")
 async def get_business_advice(product_name: str, authorization: str = Header(...)):

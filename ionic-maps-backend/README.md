@@ -22,13 +22,13 @@ Backend FastAPI con MongoDB para predicción de tiempos de ruta usando Machine L
 
 ```bash
 cd ionic-maps-backend
-python -m venv venv
+python -m venv .venv
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 # Linux/Mac
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 3. Instalar dependencias
