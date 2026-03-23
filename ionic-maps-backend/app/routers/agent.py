@@ -83,9 +83,28 @@ async def suggest_recipe(payload: dict):
     dish_name = payload.get("dish_name")
     inventory_list = payload.get("inventory", [])
     serving_size = payload.get("serving_size")
+    market_context = payload.get("market_context")
+    target_margin = payload.get("target_margin", 65)
+
     if not dish_name:
         return {"success": False, "error": "Falta el nombre del plato"}
-    return await BusinessService.suggest_recipe(dish_name, inventory_list, serving_size)
+    return await BusinessService.suggest_recipe(
+        dish_name, 
+        inventory_list, 
+        serving_size, 
+        market_context, 
+        target_margin
+    )
+
+@router.post("/menu-ideas/suggest")
+async def suggest_menu_ideas(payload: dict):
+    inventory_list = payload.get("inventory_list", [])
+    target_margin = payload.get("target_margin", 65)
+        
+    return await BusinessService.suggest_menu_from_inventory(
+        inventory_list, 
+        target_margin
+    )
 
 @router.get("/business/advice")
 async def get_business_advice(product_name: str, authorization: str = Header(...)):
