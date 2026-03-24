@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     # MongoDB
     mongodb_url: str = Field("mongodb://localhost:27017", validation_alias="MONGODB_URL")
     database_name: str = Field("ionic_maps", validation_alias="DATABASE_NAME")
+    kitchy_database_name: str = Field("kitchy", validation_alias="KITCHY_DATABASE_NAME")
     
     # OpenWeatherMap
     openweather_api_key: str = Field("", validation_alias="OPENWEATHER_API_KEY")
@@ -18,6 +19,10 @@ class Settings(BaseSettings):
     host: str = Field("0.0.0.0", validation_alias="HOST")
     port: int = Field(8000, validation_alias="PORT")
     debug: bool = Field(True, validation_alias="DEBUG")
+    
+    # AI Services
+    gemini_api_key: str = Field("", validation_alias="GEMINI_API_KEY")
+    cohere_api_key: str = Field("", validation_alias="COHERE_API_KEY")
     
     class Config:
         env_file = ".env"

@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno al inicio absoluto
+load_dotenv()
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.services.ml_service import MLService

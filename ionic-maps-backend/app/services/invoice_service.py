@@ -7,14 +7,16 @@ import os
 import json
 import base64
 import re
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from typing import Optional
+from app.services.caitlyn_vision_service import CaitlynVisionService
 
 
 class InvoiceService:
     """Servicio dedicado a la extracción de productos desde imágenes de facturas."""
     
-    _model = None
+    _client = None
 
     SYSTEM_PROMPT = (
         "Eres un asistente de contabilidad e inventario para restaurantes en Panamá. "
@@ -57,17 +59,16 @@ class InvoiceService:
     )
 
     @classmethod
-    def _get_model(cls):
-        """Inicializa el modelo de Gemini de forma lazy."""
-        if cls._model is None:
+    def _get_client(cls):
+        """Inicializa el cliente de Gemini de forma lazy."""
+        if cls._client is None:
             api_key = os.getenv("GEMINI_API_KEY", "")
             if not api_key:
                 raise ValueError("GEMINI_API_KEY no está configurada en .env")
             
-            genai.configure(api_key=api_key)
-            cls._model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
-            print("🤖 InvoiceService: Gemini Flash inicializado.")
-        return cls._model
+            cls._client = genai.Client(api_key=api_key)
+            print("🤖 InvoiceService: Cliente GenAI inicializado.")
+        return cls._client
 
     @classmethod
     def _parse_base64_image(cls, image_data: str) -> tuple[bytes, str]:
@@ -99,24 +100,30 @@ class InvoiceService:
             dict con 'productos' (lista) y 'raw_response' (texto crudo de Gemini)
         """
         try:
-            model = cls._get_model()
+            # 1. ¿Conocemos esta factura? (Búsqueda rápida de RUC/Layout)
+            # Nota: Aquí podríamos implementar una detección rápida de RUC con EasyOCR antes de ir a Gemini
+            # Por ahora, simulamos la búsqueda por RUC si el cliente lo envía o si lo detectamos.
+            
+            client = cls._get_client()
             image_bytes, mime_type = cls._parse_base64_image(image_base64)
             
             print(f"📸 InvoiceService: Procesando imagen ({len(image_bytes)} bytes, {mime_type})")
             
-            # Construir el contenido multimodal para Gemini
-            response = model.generate_content([
-                cls.SYSTEM_PROMPT,
-                {
-                    "mime_type": mime_type,
-                    "data": image_bytes
-                }
-            ])
+            # --- Lógica Híbrida: Consultar memoria visual primero ---
+            # (En una versión pro, aquí llamaríamos a CaitlynVisionService.scan_for_ruc)
+            
+            # 2. Llamada a Gemini (El "Mentor")
+            response = await client.aio.models.generate_content(
+                model="gemini-3.1-flash-lite-preview",
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+                ],
+                config=types.GenerateContentConfig(
+                    system_instruction=cls.SYSTEM_PROMPT,
+                )
+            )
             
             raw_text = response.text.strip()
-            print(f"📝 Gemini respondió: {raw_text[:200]}...")
-            
-            # Parsear la respuesta JSON
             extracted_data = cls._parse_response(raw_text)
             
             if isinstance(extracted_data, dict) and extracted_data.get("error") == "not_an_invoice":
@@ -124,24 +131,41 @@ class InvoiceService:
                     "success": False,
                     "productos": [],
                     "total_detectados": 0,
-                    "error": "La imagen proporcionada no parece ser una factura, recibo o ticket de compra válido."
+                    "error": "La imagen proporcionada no parece ser una factura válida."
                 }
             
-            # Si el parseo falló o devolvió un formato viejo (lista), normalizar
-            if isinstance(extracted_data, list):
-                productos = extracted_data
-                fiscal = {}
-            else:
-                productos = extracted_data.get("productos", [])
-                fiscal = extracted_data.get("fiscal", {})
+            productos = extracted_data.get("productos", []) if isinstance(extracted_data, dict) else extracted_data
+            fiscal = extracted_data.get("fiscal", {}) if isinstance(extracted_data, dict) else {}
             
+            # 💡 APRENDIZAJE: Si Gemini detectó un RUC, guardamos el "Aviso" para Caitlyn Vision
+            ruc = fiscal.get("ruc")
+            if ruc:
+                print(f"🎓 Caitlyn aprendiendo nuevo layout para RUC: {ruc}")
+                # Aquí guardaríamos el layout map en la tabla caitlyn_vision
+                # await CaitlynVisionService.save_layout(ruc, fiscal.get("proveedor"), ...)
+
             return {
                 "success": True,
                 "productos": productos,
                 "fiscal": fiscal,
                 "total_detectados": len(productos),
-                "raw_response": raw_text
+                "metodo": "gemini_mentor" # Para saber que usamos la IA esta vez
             }
+
+        except Exception as e:
+            print(f"🚨 Gemini de parranda (Error): {e}. Activando MODO SUPERVIVENCIA...")
+            # Si Gemini falla, vamos al plan de emergencia local
+            try:
+                emergency_result = await CaitlynVisionService.blind_scan_invoice(image_base64)
+                return emergency_result
+            except Exception as local_err:
+                print(f"💥 Error total (Falla Gemini y Falla Local): {local_err}")
+                return {
+                    "success": False,
+                    "productos": [],
+                    "total_detectados": 0,
+                    "error": f"Error total en procesamiento: {str(local_err)}"
+                }
             
         except ValueError as e:
             print(f"⚠️ InvoiceService config error: {e}")

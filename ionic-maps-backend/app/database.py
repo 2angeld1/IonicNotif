@@ -26,6 +26,10 @@ async def close_mongo_connection():
         print("❌ Conexión a MongoDB cerrada", file=sys.stderr)
         
 
-def get_database():
-    """Obtener instancia de la base de datos"""
-    return db.client[settings.database_name]
+def get_database(name: Optional[str] = None):
+    """
+    Obtener instancia de una base de datos específica.
+    Si no se pasa nombre, usa la de 'ionic_maps' por defecto (congelado por compatibilidad).
+    """
+    db_name = name if name else settings.database_name
+    return db.client[db_name]

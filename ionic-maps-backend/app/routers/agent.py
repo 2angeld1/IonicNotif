@@ -4,6 +4,7 @@ from typing import Optional, List, Any
 from app.services.agent_service import AgentService
 from app.services.invoice_service import InvoiceService
 from app.services.business_service import BusinessService
+from app.services.caitlyn_vision_service import CaitlynVisionService
 from fastapi import Header
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -57,8 +58,44 @@ async def process_invoice(request: InvoiceRequest):
     # 🏁 BLINDAJE DE TILDES: Forzamos UTF-8 puro sin escapes ASCII
     return JSONResponse(content=result)
 
+# --- Endpoints de Vision y Facturación ---
+
+class AliasLearnRequest(BaseModel):
+    invoice_text: str
+    product_id: str
+    negocio_id: Optional[str] = "global"
+
+@router.post("/vision/learn-alias")
+async def learn_alias(request: AliasLearnRequest):
+    """
+    Caitlyn aprende que un texto específico de factura corresponde a un ID de inventario.
+    Segmentado por negocio.
+    """
+    await CaitlynVisionService.learn_alias(request.invoice_text, request.product_id, request.negocio_id)
+    return {"success": True, "message": "Aprendizaje visual guardado"}
+
+@router.post("/vision/match-products")
+async def match_invoice_products(payload: dict):
+    """
+    Toma una lista de productos detectados por Gemini y busca sus matches en el inventario real.
+    """
+    invoice_items = payload.get("extracted_items", [])
+    inventory_items = payload.get("inventory_items", [])
+    negocio_id = payload.get("negocio_id", "global")
+    
+    results = []
+    for item in invoice_items:
+        product_id = await CaitlynVisionService.match_product_alias(item["nombre"], inventory_items, negocio_id)
+        results.append({
+            "original": item,
+            "matched_id": product_id
+        })
+        
+    return {"success": True, "matches": results}
+
 class DashboardAlertsRequest(BaseModel):
     alerts: list
+    negocio_id: Optional[str] = None
 
 class StrategicAdviceRequest(BaseModel):
     product_name: Optional[str] = None
@@ -71,7 +108,7 @@ async def get_dashboard_summary(request: DashboardAlertsRequest):
     """
     Caitlyn genera un resumen a partir de las alertas de rentabilidad pasadas por la app.
     """
-    result = await BusinessService.get_dashboard_summary(request.alerts)
+    result = await BusinessService.get_dashboard_summary(request.alerts, request.negocio_id)
     return result
 
 @router.post("/business/advice")
@@ -93,17 +130,20 @@ async def suggest_recipe(payload: dict):
         inventory_list, 
         serving_size, 
         market_context, 
-        target_margin
+        target_margin,
+        payload.get("negocio_id", "global")
     )
 
 @router.post("/menu-ideas/suggest")
 async def suggest_menu_ideas(payload: dict):
     inventory_list = payload.get("inventory_list", [])
     target_margin = payload.get("target_margin", 65)
+    negocio_id = payload.get("negocio_id", "global")
         
     return await BusinessService.suggest_menu_from_inventory(
         inventory_list, 
-        target_margin
+        target_margin,
+        negocio_id
     )
 
 @router.get("/business/advice")
