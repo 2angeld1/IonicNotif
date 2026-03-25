@@ -5,6 +5,7 @@ from app.services.agent_service import AgentService
 from app.services.invoice_service import InvoiceService
 from app.services.business_service import BusinessService
 from app.services.caitlyn_vision_service import CaitlynVisionService
+from app.services.shopping_service import ShoppingService
 from fastapi import Header
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -157,3 +158,30 @@ async def get_business_advice(product_name: str, authorization: str = Header(...
     
     result = await BusinessService.get_advice(product_name, token)
     return result
+
+# --- Caitlyn Shopping / Presupuestario ---
+
+class ShoppingRequest(BaseModel):
+    text: Optional[str] = None
+    image: Optional[str] = None # base64
+
+@router.post("/shopping/parse")
+async def parse_shopping_list(request: ShoppingRequest):
+    """
+    Toma una lista de compras (texto o foto) y la convierte en items con precios.
+    """
+    result = await ShoppingService.parse_shopping_list(request.text, request.image)
+    return result
+
+class PriceReportRequest(BaseModel):
+    item_name: str
+    price: float
+    negocio_id: str
+
+@router.post("/shopping/learn-price")
+async def learn_price(request: PriceReportRequest):
+    """
+    Guarda un precio real para que Caitlyn aprenda del mercado local.
+    """
+    await ShoppingService.save_historical_price(request.item_name, request.price, request.negocio_id)
+    return {"success": True, "message": "Caitlyn aprendió el precio de " + request.item_name}
