@@ -682,7 +682,7 @@ class BusinessService:
             pattern_signature = hashlib.md5(f"menu_v3_{negocio_id}_{inv_snapshot}_{target_margin}".encode()).hexdigest()
 
             # 🧠 ¿Caitlyn ya aprendió este patrón exacto de inventario en MongoDB?
-            db = await get_database(get_settings().kitchy_database_name)
+            db = get_database(get_settings().kitchy_database_name)
             knowledge_col = db["caitlyn_knowledge"]
             past_menu = await knowledge_col.find_one({"pattern_signature": pattern_signature, "type": "menu_suggestion"})
             
@@ -764,7 +764,7 @@ class BusinessService:
         except Exception as e:
             print(f"❌ [CAITLYN ERROR - MENU IDEAS]: {str(e)}")
             # Fallback: Último menú generado exitosamente
-            db = await get_database(get_settings().kitchy_database_name)
+            db = get_database(get_settings().kitchy_database_name)
             knowledge_col = db["caitlyn_knowledge"]
             last_menu = await knowledge_col.find_one(
                 {"type": "menu_suggestion"},
