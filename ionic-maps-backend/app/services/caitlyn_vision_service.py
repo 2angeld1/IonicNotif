@@ -40,7 +40,7 @@ class CaitlynVisionService:
         """
         Busca si Caitlyn ya conoce el formato (layout) de este RUC.
         """
-        db = get_database("kitchy")
+        db = get_database(get_settings().kitchy_database_name)
         layout = await db[cls.COLLECTION_NAME].find_one({
             "type": "invoice_layout", 
             "ruc": ruc
@@ -52,7 +52,7 @@ class CaitlynVisionService:
         """
         Guarda un nuevo mapa de factura en la memoria visual de Caitlyn.
         """
-        db = get_database("kitchy")
+        db = get_database(get_settings().kitchy_database_name)
         await db[cls.COLLECTION_NAME].update_one(
             {"type": "invoice_layout", "ruc": ruc},
             {
@@ -71,7 +71,7 @@ class CaitlynVisionService:
         Usa lógica difusa (Fuzzy Matching) para encontrar el producto en el inventario.
         Si Caitlyn ya aprendió un alias antes para este negocio, lo usa directamente.
         """
-        db = get_database("kitchy")
+        db = get_database(get_settings().kitchy_database_name)
         
         # 1. Buscar en la memoria de alias aprendidos (Segmentado por Negocio)
         alias_doc = await db[cls.COLLECTION_NAME].find_one({
@@ -106,7 +106,7 @@ class CaitlynVisionService:
         Guarda un nuevo apodo de producto para no preguntar la próxima vez.
         Segmentado por negocio para evitar conflictos de IDs.
         """
-        db = get_database("kitchy")
+        db = get_database(get_settings().kitchy_database_name)
         await db[cls.COLLECTION_NAME].update_one(
             {"type": "product_alias", "invoice_text": invoice_text, "negocio_id": negocio_id},
             {"$set": {"product_id": str(product_id), "updated_at": datetime.utcnow().isoformat()}},
