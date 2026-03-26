@@ -164,7 +164,7 @@ class BusinessService:
                 patterns.append("INVENTORY_EXCESS")
                 if sales < 5:
                     patterns.append("LOW_SALES_VELOCITY")
-                    insights.append("Ojo Angel: Tienes mucho stock y pocas ventas de este producto este mes (Rotación Baja).")
+                    insights.append("Ojo: Tienes mucho stock y pocas ventas de este producto este mes (Rotación Baja).")
                 else:
                     insights.append("Inventario alto pero con movimiento saludable.")
             elif qty < 10 and qty > 0:
@@ -232,6 +232,7 @@ class BusinessService:
         """
         try:
             product_name = payload.get('product_name', 'tus productos')
+            user_name = payload.get('user_name', 'Socio/a')
             market_context = payload.get('market_context', {})
             business_data = payload.get('business_data', {})
 
@@ -283,7 +284,7 @@ class BusinessService:
                     precio_target_str = f"PRECIO OBJETIVO MATEMÁTICO: ${business_data.get('precioTargetMatematico')}. DEBES USAR O MENCIONAR EXACTAMENTE ESTE PRECIO O APROXIMADO EN TU CONSEJO.\n"
 
                 prompt = (
-                    f"Angel tiene este producto: {product_name}.\n"
+                    f"{user_name} tiene este producto: {product_name}.\n"
                     f"DATOS DE COSTO INTERNO (Kitchy): {business_data}\n"
                     f"{precio_target_str}"
                     f"CONTEXTO REAL DE PANAMÁ (Scrapers): {market_context}\n"
@@ -317,7 +318,7 @@ class BusinessService:
                 # FALLBACK Proactivo: Caitlyn usa su propio razonamiento si la IA de red falla.
                 print(f"❌ [CAITLYN ERROR ESTRATÉGICO]: {str(e)}")
                 advice_text = (
-                    f"Hola Angel, parece que hay un retraso en la conexión con la central de IA, "
+                    f"Hola {user_name}, parece que hay un retraso en la conexión con la central de IA, "
                     f"pero basándome en mi análisis local de Panamá: \n\n{caitlyn_insight}\n\n"
                     "¡Mi recomendación es que tomes acción sobre estos puntos lo antes posible! ⚡"
                 )
@@ -562,7 +563,7 @@ class BusinessService:
             return {"success": False, "message": "Error", "error": str(e)}
 
     @classmethod
-    async def get_dashboard_summary(cls, alerts: list, negocio_id: str = "global") -> dict:
+    async def get_dashboard_summary(cls, alerts: list, negocio_id: str = "global", user_name: str = "Socio/a") -> dict:
         """
         Genera un resumen estratégico del pulso del negocio.
         Usa memoria persistente por Hash para evitar re-análisis innecesarios.
@@ -601,11 +602,11 @@ class BusinessService:
             
             try:
                 prompt = (
-                    "Eres la socia estratégica de Angel en Kitchy.\n"
+                    f"Eres la socia estratégica de {user_name} en Kitchy.\n"
                     f"Tienes estas {len(alerts)} alertas de rentabilidad:\n"
                     f"{json.dumps(alerts, indent=2)}\n\n"
                     "=== TU MISIÓN COMENTADA ===\n"
-                    "Analiza el impacto financiero real. Dile a Angel qué es lo más urgente y dale un consejo amigable pero profesional.\n"
+                    f"Analiza el impacto financiero real. Dile a {user_name} qué es lo más urgente y dale un consejo amigable pero profesional.\n"
                     "No des una respuesta genérica. Sé breve y usa emojis. ✨🚀"
                 )
                 
@@ -633,7 +634,7 @@ class BusinessService:
                         "message": last_any_summary["summary_text"] + "\n\n(Caitlyn: *Gemini está descansando, te muestro mi último análisis guardado.* 😴)",
                         "source": "CAITLYN_STALE_MEMORY"
                     }
-                return {"success": True, "message": "¡Angel! No pude contactar a Gemini. Revisa tus alertas abajo.", "source": "CAITLYN_FAILSAFE"}
+                return {"success": True, "message": f"¡{user_name}! No pude contactar a Gemini. Revisa tus alertas abajo.", "source": "CAITLYN_FAILSAFE"}
 
             # 🧠 APRENDIZAJE ETERNO
             await knowledge_col.update_one(
@@ -666,7 +667,7 @@ class BusinessService:
     _menu_patterns_cache = {}
 
     @classmethod
-    async def suggest_menu_from_inventory(cls, inventory_list: list, target_margin: int = 65, negocio_id: str = "global") -> dict:
+    async def suggest_menu_from_inventory(cls, inventory_list: list, target_margin: int = 65, negocio_id: str = "global", user_name: str = "Socio/a") -> dict:
         """
         Analiza el inventario y sugiere 5 platillos para maximizar rentabilidad o rotar inventario alto.
         Caitlyn usa memoria persistente en MongoDB para no llamar a la IA si el patrón de inventario es similar.
@@ -704,7 +705,7 @@ class BusinessService:
             inv_text = "\n".join([f"- {i.get('nombre')} (Stock: {i.get('cantidad')} {i.get('unidad')}, Costo: ${i.get('costoUnitario', 0)})" for i in top_items])
 
             prompt = (
-                "Eres el Chef Ejecutivo Maestro de Kitchy en Panamá.\n\n"
+                f"Eres el Chef Ejecutivo Maestro de {user_name} en Kitchy Panamá.\n\n"
                 f"El inventario ha cambiado. Aquí tienes los insumos top disponibles:\n{inv_text}\n\n"
                 "=== TU MISIÓN COMPLETA ===\n"
                 "Invéntate 5 opciones de platillos, bebidas o combos altamente rentables. "

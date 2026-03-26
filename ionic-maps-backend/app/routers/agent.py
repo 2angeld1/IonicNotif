@@ -97,6 +97,7 @@ async def match_invoice_products(payload: dict):
 class DashboardAlertsRequest(BaseModel):
     alerts: list
     negocio_id: Optional[str] = None
+    user_name: Optional[str] = "Socio/a"
 
 class StrategicAdviceRequest(BaseModel):
     product_name: Optional[str] = None
@@ -109,7 +110,7 @@ async def get_dashboard_summary(request: DashboardAlertsRequest):
     """
     Caitlyn genera un resumen a partir de las alertas de rentabilidad pasadas por la app.
     """
-    result = await BusinessService.get_dashboard_summary(request.alerts, request.negocio_id)
+    result = await BusinessService.get_dashboard_summary(request.alerts, request.negocio_id, request.user_name)
     return result
 
 @router.post("/business/advice")
@@ -144,7 +145,8 @@ async def suggest_menu_ideas(payload: dict):
     return await BusinessService.suggest_menu_from_inventory(
         inventory_list, 
         target_margin,
-        negocio_id
+        negocio_id,
+        payload.get("user_name", "Socio/a")
     )
 
 @router.get("/business/advice")
