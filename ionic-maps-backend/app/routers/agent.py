@@ -21,6 +21,7 @@ class AgentResponse(BaseModel):
 
 class InvoiceRequest(BaseModel):
     imagen: str  # base64 de la imagen
+    negocio_tipo: Optional[str] = "GASTRONOMIA"
 
 class InvoiceResponse(BaseModel):
     success: bool
@@ -53,9 +54,9 @@ from fastapi.responses import JSONResponse
 async def process_invoice(request: InvoiceRequest):
     """
     Endpoint para procesar facturas con Gemini Flash Vision.
-    Recibe una imagen base64 y devuelve los productos detectados.
+    Recibe una imagen base64 y el tipo de negocio.
     """
-    result = await InvoiceService.process_invoice(request.imagen)
+    result = await InvoiceService.process_invoice(request.imagen, request.negocio_tipo)
     # 🏁 BLINDAJE DE TILDES: Forzamos UTF-8 puro sin escapes ASCII
     return JSONResponse(content=result)
 

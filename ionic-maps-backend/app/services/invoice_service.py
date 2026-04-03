@@ -19,43 +19,44 @@ class InvoiceService:
     _client = None
 
     SYSTEM_PROMPT = (
-        "Eres un asistente de contabilidad e inventario para restaurantes en Panamá. "
-        "Recibirás una imagen. PRIMERA REGLA: Verifica si la imagen es realmente una factura, recibo o ticket de compra. "
-        "Si NO es una factura (ej. una persona, paisaje, objeto random, etc.), responde EXACTAMENTE y ÚNICAMENTE con este JSON: "
+        "Eres Caitlyn, un asistente de contabilidad e inventario versátil para negocios en Panamá. "
+        "Recibirás una imagen de una factura y el tipo de negocio ({negocio_tipo}). "
+        "PRIMERA REGLA: Verifica si la imagen es realmente una factura, recibo o ticket de compra. "
+        "Si NO es una factura, responde EXACTAMENTE: "
         '{"error": "not_an_invoice"}\n\n'
         "Si SÍ es una factura, extrae la información fiscal y TODOS los productos listados. "
         "Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown. "
         "La estructura debe ser exactamente esta:\n"
         "{\n"
         '  "fiscal": {\n'
-        '    "proveedor": "string o null",\n'
-        '    "ruc": "string o null (formato RUC de Panamá)",\n'
-        '    "dv": "string o null (dígito verificador)",\n'
-        '    "nroFactura": "string o null",\n'
-        '    "fecha": "ISO date string o null (obligatorio si es visible)",\n'
-        '    "receptor": "string o null (ej: Consumidor Final, el nombre de un negocio, etc.)",\n'
-        '    "subtotal": number,\n'
-        '    "itbms": number (7% típicamente),\n'
-        '    "total": number\n'
-        "  },\n"
+        '    "proveedor": "string", "ruc": "string", "dv": "string", "nroFactura": "string", '
+        '    "fecha": "ISO string", "receptor": "string", "subtotal": number, "itbms": number, "total": number\n'
+        '  },\n'
         '  "productos": [\n'
         '    {\n'
         '      "nombre": "string", \n'
         '      "cantidad": number, \n'
-        '      "unidad": "string (ej: Caja, Bolsa, lb, ud)", \n'
-        '      "unidadesPorEmpaque": number (ej: si es Caja x 12, pon 12. Por defecto 1),\n'
-        '      "precioUnitario": number (el precio del empaque total segun factura)\n'
+        '      "unidad": "string", \n'
+        '      "unidadesPorEmpaque": number, \n'
+        '      "precioUnitario": number, \n'
+        '      "categoriaSugerida": "string (insumo | reventa | ingrediente | limpieza)", \n'
+        '      "precioReventaSugerido": number | null\n'
         '    }\n'
         '  ]\n'
         "}\n\n"
-        "Reglas:\n"
-        "- Si el nombre indica un pack o contenido (ej: 'Sodas x 12', 'Pack 6uds', 'Caja 24'), extrae el número en 'unidadesPorEmpaque'.\n"
-        "- Si la unidad no es clara, usa 'unidades'.\n"
-        "- Si el precio unitario no es visible pero hay un total y cantidad, calcula el unitario.\n"
-        "- El nombre del producto debe ser descriptivo pero corto.\n"
-        "- El campo 'itbms' es el impuesto (7%). Si no está desglosado pero el total es mayor al subtotal, calcúlalo.\n"
-        "- IMPORTANTE: Responde en español y usa tildes reales (UTF-8). NO uses códigos de escape como \\u00f3.\n"
-        "- Si no puedes leer algún campo físico o fiscal, usa null.\n"
+        "REGLAS ESPECÍFICAS PARA {negocio_tipo}:\n"
+        "- Si el tipo es 'BELLEZA':\n"
+        "  * Identifica si el producto es un 'insumo' (ej: tinte, agua oxigenada, cera) o para 'reventa' (ej: shampoo 250ml, cremas de peinar).\n"
+        "  * Si es 'reventa', sugiere un 'precioReventaSugerido' aplicando un margen del 65% sobre el precio unitario final.\n"
+        "  * Si es 'insumo', usa null en 'precioReventaSugerido'.\n"
+        "  * Las categorías sugeridas deben ser 'insumo' o 'reventa'.\n"
+        "- Si el tipo es 'GASTRONOMIA' (default):\n"
+        "  * Las categorías deben ser 'ingrediente', 'bebida', 'postre' o 'limpieza'.\n"
+        "  * 'precioReventaSugerido' suele ser null a menos que sea un producto de reventa directa (ej: una soda de lata).\n\n"
+        "Reglas Generales:\n"
+        "- Si el nombre indica pack (ej: 'Sodas x 12'), extrae el número en 'unidadesPorEmpaque'.\n"
+        "- Si no puedes leer algún campo, usa null.\n"
+        "- Responde en español con tildes reales (UTF-8).\n"
     )
 
     @classmethod
@@ -74,14 +75,11 @@ class InvoiceService:
     def _parse_base64_image(cls, image_data: str) -> tuple[bytes, str]:
         """
         Extrae los bytes y el mime type de un string base64.
-        Soporta formatos: 'data:image/jpeg;base64,...' o base64 puro.
         """
         if image_data.startswith("data:"):
-            # Formato data URI
             header, encoded = image_data.split(",", 1)
             mime_type = header.split(":")[1].split(";")[0]
         else:
-            # Base64 puro, asumimos JPEG
             encoded = image_data
             mime_type = "image/jpeg"
         
@@ -89,37 +87,26 @@ class InvoiceService:
         return image_bytes, mime_type
 
     @classmethod
-    async def process_invoice(cls, image_base64: str) -> dict:
+    async def process_invoice(cls, image_base64: str, negocio_tipo: str = "GASTRONOMIA") -> dict:
         """
-        Procesa una imagen de factura y extrae los productos.
-        
-        Args:
-            image_base64: Imagen en formato base64 (con o sin data URI prefix)
-            
-        Returns:
-            dict con 'productos' (lista) y 'raw_response' (texto crudo de Gemini)
+        Procesa una imagen de factura y extrae los productos segun el tipo de negocio.
         """
         try:
-            # 1. ¿Conocemos esta factura? (Búsqueda rápida de RUC/Layout)
-            # Nota: Aquí podríamos implementar una detección rápida de RUC con EasyOCR antes de ir a Gemini
-            # Por ahora, simulamos la búsqueda por RUC si el cliente lo envía o si lo detectamos.
-            
             client = cls._get_client()
             image_bytes, mime_type = cls._parse_base64_image(image_base64)
             
-            print(f"📸 InvoiceService: Procesando imagen ({len(image_bytes)} bytes, {mime_type})")
+            # Personalizar el prompt segun el negocio
+            system_instruction = cls.SYSTEM_PROMPT.format(negocio_tipo=negocio_tipo)
             
-            # --- Lógica Híbrida: Consultar memoria visual primero ---
-            # (En una versión pro, aquí llamaríamos a CaitlynVisionService.scan_for_ruc)
+            print(f"📸 InvoiceService: Procesando factura de {negocio_tipo} ({len(image_bytes)} bytes)")
             
-            # 2. Llamada a Gemini (El "Mentor")
             response = await client.aio.models.generate_content(
                 model="gemini-3.1-flash-lite-preview",
                 contents=[
                     types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
                 ],
                 config=types.GenerateContentConfig(
-                    system_instruction=cls.SYSTEM_PROMPT,
+                    system_instruction=system_instruction,
                 )
             )
             
