@@ -6,7 +6,15 @@ from rapidfuzz import process, fuzz
 import cv2
 import numpy as np
 import base64
-import easyocr
+try:
+    import easyocr
+    EASYOCR_AVAILABLE = True
+except ImportError:
+    print("⚠️ EasyOCR (o torch) no está disponible. El escaneo local estará deshabilitado.")
+    EASYOCR_AVAILABLE = False
+except Exception as e:
+    print(f"⚠️ Error cargando EasyOCR (DLL Crash?): {str(e)}")
+    EASYOCR_AVAILABLE = False
 from datetime import datetime
 
 class CaitlynVisionService:
@@ -21,6 +29,9 @@ class CaitlynVisionService:
     @classmethod
     def _get_reader(cls):
         """Inicialización perezosa de EasyOCR (en español e inglés)"""
+        if not EASYOCR_AVAILABLE:
+            return None
+            
         if cls._reader is None:
             # Optimizamos para CPU si no hay GPU disponible
             cls._reader = easyocr.Reader(['es', 'en'], gpu=False)

@@ -74,11 +74,23 @@ class VentasNotebookService:
         return image_bytes, mime_type
 
     @classmethod
-    async def process_notebook(cls, image_base64: str) -> dict:
-        """Procesa una imagen de cuaderno y extrae las ventas."""
+    async def process_notebook(cls, image_data: str) -> dict:
+        """
+        Toma una foto de una hoja de ventas de cuaderno (base64 o URL) y extrae las ventas.
+        """
         try:
             client = cls._get_client()
-            image_bytes, mime_type = cls._parse_base64_image(image_base64)
+            
+            # Detectar si es URL (de Cloudinary u otro) o Base64
+            if image_data.startswith("http"):
+                import httpx
+                print(f"🌐 VentasNotebookService: Descargando imagen desde URL...")
+                async with httpx.AsyncClient() as httpx_client:
+                    resp = await httpx_client.get(image_data)
+                    image_bytes = resp.content
+                    mime_type = resp.headers.get("Content-Type", "image/jpeg")
+            else:
+                image_bytes, mime_type = cls._parse_base64_image(image_data)
             
             print(f"📖 VentasNotebookService: Procesando cuaderno ({len(image_bytes)} bytes) con {mime_type}")
             
