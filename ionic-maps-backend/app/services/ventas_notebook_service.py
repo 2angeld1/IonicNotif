@@ -80,10 +80,13 @@ class VentasNotebookService:
             client = cls._get_client()
             image_bytes, mime_type = cls._parse_base64_image(image_base64)
             
-            print(f"📖 VentasNotebookService: Procesando cuaderno ({len(image_bytes)} bytes)")
+            print(f"📖 VentasNotebookService: Procesando cuaderno ({len(image_bytes)} bytes) con {mime_type}")
+            
+            # Usar el mismo modelo que InvoiceService
+            model_name = os.getenv("GEMINI_MODEL_NOTEBOOK", "gemini-3.1-flash-lite-preview")
             
             response = await client.aio.models.generate_content(
-                model="gemini-2.0-flash-lite-preview-02-05", # Usando el modelo más rápido y capaz
+                model=model_name,
                 contents=[
                     types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
                 ],
@@ -105,12 +108,14 @@ class VentasNotebookService:
             }
 
         except Exception as e:
-            print(f"🚨 Error en VentasNotebookService: {e}")
+            print(f"🚨 Error Crítico en VentasNotebookService: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
                 "ventas": [],
                 "total_detectadas": 0,
-                "error": f"Error procesando cuaderno: {str(e)}"
+                "error": f"IA Error: {str(e)}"
             }
 
     @classmethod
