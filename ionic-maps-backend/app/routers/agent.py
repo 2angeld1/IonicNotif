@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from app.services.agent_service import AgentService
@@ -6,7 +6,8 @@ from app.services.invoice_service import InvoiceService
 from app.services.business_service import BusinessService
 from app.services.caitlyn_vision_service import CaitlynVisionService
 from app.services.shopping_service import ShoppingService
-from fastapi import Header
+from app.services.ventas_notebook_service import VentasNotebookService
+from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
@@ -188,3 +189,16 @@ async def learn_price(request: PriceReportRequest):
     """
     await ShoppingService.save_historical_price(request.item_name, request.price, request.negocio_id)
     return {"success": True, "message": "Caitlyn aprendió el precio de " + request.item_name}
+
+# --- Procesamiento de Cuadernos de Ventas ---
+
+class NotebookRequest(BaseModel):
+    imagen: str # base64
+
+@router.post("/notebook")
+async def process_notebook(request: NotebookRequest):
+    """
+    Toma una foto de una hoja de ventas de cuaderno y extrae las ventas.
+    """
+    result = await VentasNotebookService.process_notebook(request.imagen)
+    return JSONResponse(content=result)
