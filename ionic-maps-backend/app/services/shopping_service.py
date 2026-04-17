@@ -71,7 +71,7 @@ class ShoppingService:
 
         try:
             response = await client.aio.models.generate_content(
-                model="gemini-3.1-flash-lite-preview", # Seguimos el estándar del backend (3.1 flash lite)
+                model="gemini-2.5-flash", # Estable para producción
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=cls.SYSTEM_PROMPT,

@@ -613,7 +613,7 @@ class BusinessService:
                 client = cls._get_gemini_client()
                 # Gemini 3.1 Flash-Lite para máxima velocidad y ahorro
                 response = client.models.generate_content(
-                    model='gemini-3.1-flash-lite-preview', 
+                    model='gemini-2.5-flash', # Estable para producción
                     contents=prompt
                 )
                 

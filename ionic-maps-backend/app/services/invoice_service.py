@@ -86,10 +86,18 @@ class InvoiceService:
         image_bytes = base64.b64decode(encoded)
         return image_bytes, mime_type
 
+    # Cascada de modelos: estable → latest → preview → OCR local
+    GEMINI_MODELS = [
+        "gemini-2.5-flash",              # Estable, el más confiable para visión
+        "gemini-flash-latest",           # Alias: siempre apunta al último estable
+        "gemini-3.1-flash-lite-preview", # Preview: rápido pero inestable
+    ]
+
     @classmethod
     async def process_invoice(cls, image_base64: str, negocio_tipo: str = "GASTRONOMIA") -> dict:
         """
         Procesa una imagen de factura y extrae los productos segun el tipo de negocio.
+        Intenta múltiples modelos en cascada si el primero falla.
         """
         try:
             client = cls._get_client()
@@ -100,48 +108,69 @@ class InvoiceService:
             
             print(f"📸 InvoiceService: Procesando factura de {negocio_tipo} ({len(image_bytes)} bytes)")
             
-            response = await client.aio.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-                ],
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                )
-            )
-            
-            raw_text = response.text.strip()
-            extracted_data = cls._parse_response(raw_text)
-            
-            if isinstance(extracted_data, dict) and extracted_data.get("error") == "not_an_invoice":
-                return {
-                    "success": False,
-                    "productos": [],
-                    "total_detectados": 0,
-                    "error": "La imagen proporcionada no parece ser una factura válida."
-                }
-            
-            productos = extracted_data.get("productos", []) if isinstance(extracted_data, dict) else extracted_data
-            fiscal = extracted_data.get("fiscal", {}) if isinstance(extracted_data, dict) else {}
-            
-            # 💡 APRENDIZAJE: Si Gemini detectó un RUC, guardamos el "Aviso" para Caitlyn Vision
-            ruc = fiscal.get("ruc")
-            if ruc:
-                print(f"🎓 Caitlyn aprendiendo nuevo layout para RUC: {ruc}")
-                # Aquí guardaríamos el layout map en la tabla caitlyn_vision
-                # await CaitlynVisionService.save_layout(ruc, fiscal.get("proveedor"), ...)
+            # Intentar cada modelo en cascada
+            last_error = None
+            for model_name in cls.GEMINI_MODELS:
+                try:
+                    print(f"🤖 Intentando con modelo: {model_name}")
+                    response = await client.aio.models.generate_content(
+                        model=model_name,
+                        contents=[
+                            types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+                        ],
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                        )
+                    )
+                    
+                    raw_text = response.text.strip()
+                    
+                    # Verificar que no sea una respuesta vacía o literal "error"
+                    if not raw_text or raw_text == '"error"' or raw_text == 'error':
+                        print(f"⚠️ Modelo {model_name} devolvió respuesta vacía o error genérico. Probando siguiente...")
+                        last_error = f"Modelo {model_name} devolvió: {raw_text[:50] if raw_text else 'VACÍO'}"
+                        continue
+                    
+                    extracted_data = cls._parse_response(raw_text)
+                    
+                    if isinstance(extracted_data, dict) and extracted_data.get("error") == "not_an_invoice":
+                        return {
+                            "success": False,
+                            "productos": [],
+                            "total_detectados": 0,
+                            "error": "La imagen proporcionada no parece ser una factura válida."
+                        }
+                    
+                    productos = extracted_data.get("productos", []) if isinstance(extracted_data, dict) else extracted_data
+                    fiscal = extracted_data.get("fiscal", {}) if isinstance(extracted_data, dict) else {}
+                    
+                    # Verificar que realmente extrajo productos
+                    if not productos and isinstance(extracted_data, list):
+                        productos = extracted_data
+                    
+                    if productos:
+                        print(f"✅ Modelo {model_name} extrajo {len(productos)} productos exitosamente.")
+                    
+                    # 💡 APRENDIZAJE: Si Gemini detectó un RUC, guardamos el "Aviso" para Caitlyn Vision
+                    ruc = fiscal.get("ruc")
+                    if ruc:
+                        print(f"🎓 Caitlyn aprendiendo nuevo layout para RUC: {ruc}")
 
-            return {
-                "success": True,
-                "productos": productos,
-                "fiscal": fiscal,
-                "total_detectados": len(productos),
-                "metodo": "gemini_mentor" # Para saber que usamos la IA esta vez
-            }
-
-        except Exception as e:
-            print(f"🚨 Gemini de parranda (Error): {e}. Activando MODO SUPERVIVENCIA...")
-            # Si Gemini falla, vamos al plan de emergencia local
+                    return {
+                        "success": True,
+                        "productos": productos,
+                        "fiscal": fiscal,
+                        "total_detectados": len(productos),
+                        "metodo": f"gemini_{model_name}"
+                    }
+                    
+                except Exception as model_err:
+                    print(f"⚠️ Modelo {model_name} falló: {model_err}")
+                    last_error = str(model_err)
+                    continue
+            
+            # Todos los modelos fallaron -> modo supervivencia
+            print(f"🚨 Todos los modelos Gemini fallaron. Último error: {last_error}. Activando MODO SUPERVIVENCIA...")
             try:
                 emergency_result = await CaitlynVisionService.blind_scan_invoice(image_base64)
                 return emergency_result
@@ -153,7 +182,7 @@ class InvoiceService:
                     "total_detectados": 0,
                     "error": f"Error total en procesamiento: {str(local_err)}"
                 }
-            
+
         except ValueError as e:
             print(f"⚠️ InvoiceService config error: {e}")
             return {
@@ -163,7 +192,7 @@ class InvoiceService:
                 "error": str(e)
             }
         except Exception as e:
-            print(f"💥 InvoiceService error: {e}")
+            print(f"💥 InvoiceService error inesperado: {e}")
             return {
                 "success": False,
                 "productos": [],

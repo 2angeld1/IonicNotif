@@ -95,7 +95,7 @@ class VentasNotebookService:
             print(f"📖 VentasNotebookService: Procesando cuaderno ({len(image_bytes)} bytes) con {mime_type}")
             
             # Usar el mismo modelo que InvoiceService
-            model_name = os.getenv("GEMINI_MODEL_NOTEBOOK", "gemini-3.1-flash-lite-preview")
+            model_name = os.getenv("GEMINI_MODEL_NOTEBOOK", "gemini-2.5-flash")
             
             response = await client.aio.models.generate_content(
                 model=model_name,
