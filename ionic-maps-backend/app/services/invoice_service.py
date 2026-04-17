@@ -23,17 +23,17 @@ class InvoiceService:
         "Recibirás una imagen de una factura y el tipo de negocio ({negocio_tipo}). "
         "PRIMERA REGLA: Verifica si la imagen es realmente una factura, recibo o ticket de compra. "
         "Si NO es una factura, responde EXACTAMENTE: "
-        '{"error": "not_an_invoice"}\n\n'
+        '{{"error": "not_an_invoice"}}\n\n'
         "Si SÍ es una factura, extrae la información fiscal y TODOS los productos listados. "
         "Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown. "
         "La estructura debe ser exactamente esta:\n"
-        "{\n"
-        '  "fiscal": {\n'
+        "{{\n"
+        '  "fiscal": {{\n'
         '    "proveedor": "string", "ruc": "string", "dv": "string", "nroFactura": "string", '
         '    "fecha": "ISO string", "receptor": "string", "subtotal": number, "itbms": number, "total": number\n'
-        '  },\n'
+        '  }},\n'
         '  "productos": [\n'
-        '    {\n'
+        '    {{\n'
         '      "nombre": "string", \n'
         '      "cantidad": number, \n'
         '      "unidad": "string", \n'
@@ -41,9 +41,9 @@ class InvoiceService:
         '      "precioUnitario": number, \n'
         '      "categoriaSugerida": "string (insumo | reventa | ingrediente | limpieza)", \n'
         '      "precioReventaSugerido": number | null\n'
-        '    }\n'
+        '    }}\n'
         '  ]\n'
-        "}\n\n"
+        "}}\n\n"
         "REGLAS ESPECÍFICAS PARA {negocio_tipo}:\n"
         "- Si el tipo es 'BELLEZA':\n"
         "  * Identifica si el producto es un 'insumo' (ej: tinte, agua oxigenada, cera) o para 'reventa' (ej: shampoo 250ml, cremas de peinar).\n"
