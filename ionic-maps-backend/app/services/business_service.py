@@ -10,7 +10,7 @@ import os
 import httpx
 import cohere
 from app.database import get_database
-from app.config import get_settings
+from app.config import get_settings, GEMINI_MODELS, COHERE_MODELS
 import math
 from typing import Optional, List, Dict, Any
 from google import genai
@@ -296,7 +296,7 @@ class BusinessService:
                 )
                 
                 ai_response = await client.chat(
-                    model="command-r-08-2024",
+                    model=COHERE_MODELS[1], # Usamos Command-R (08-2024) para estrategia
                     message=prompt,
                     preamble=cls.SYSTEM_PROMPT,
                 )
@@ -380,7 +380,7 @@ class BusinessService:
         try:
             client = cls._get_client()
             response = await client.chat(
-                model="command-r-08-2024",
+                model=COHERE_MODELS[1],
                 message=prompt,
                 preamble=cls.SYSTEM_PROMPT,
             )
@@ -554,7 +554,7 @@ class BusinessService:
             client = cls._get_client()
             prompt = f"Datos de {product_name}:\n{costing_data}\nConsejo pro?"
             ai_response = await client.chat(
-                model="command-r-08-2024",
+                model=COHERE_MODELS[1],
                 message=prompt,
                 preamble=cls.SYSTEM_PROMPT,
             )
@@ -613,7 +613,7 @@ class BusinessService:
                 client = cls._get_gemini_client()
                 # Gemini 3.1 Flash-Lite para máxima velocidad y ahorro
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash', # Estable para producción
+                    model=GEMINI_MODELS[0], # Usamos 2.5-flash
                     contents=prompt
                 )
                 
@@ -729,7 +729,7 @@ class BusinessService:
 
             client = cls._get_client()
             ai_response = await client.chat(
-                model="command-r-08-2024",
+                model=COHERE_MODELS[1],
                 message=prompt,
                 preamble=cls.SYSTEM_PROMPT,
             )

@@ -28,6 +28,22 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
+# --- CONFIGURACIÓN DE MODELOS DE IA (CASCADAS) ---
+GEMINI_MODELS = [
+    "gemini-2.5-flash-lite",         # Alta disponibilidad (Usar primero hoy)
+    "gemini-2.5-flash",              # Estable
+    "gemini-2.0-flash",              # Balanceado
+    "gemini-2.0-flash-lite",         # El caballo de batalla
+    "gemini-flash-latest",           
+    "gemini-3.1-flash-lite-preview", 
+]
+
+COHERE_MODELS = [
+    "command-r-plus-08-2024",        # Inteligencia superior para razonamiento
+    "command-r-08-2024",             # El caballo de batalla para texto
+    "command-r",                     # Versión base rápida
+]
+
 
 @lru_cache()
 def get_settings() -> Settings:

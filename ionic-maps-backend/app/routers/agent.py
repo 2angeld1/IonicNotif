@@ -7,6 +7,7 @@ from app.services.business_service import BusinessService
 from app.services.caitlyn_vision_service import CaitlynVisionService
 from app.services.shopping_service import ShoppingService
 from app.services.ventas_notebook_service import VentasNotebookService
+from app.services.market_service import MarketService
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -201,4 +202,17 @@ async def process_notebook(request: NotebookRequest):
     Toma una foto de una hoja de ventas de cuaderno y extrae las ventas.
     """
     result = await VentasNotebookService.process_notebook(request.imagen)
+    return JSONResponse(content=result)
+
+class MarketParseRequest(BaseModel):
+    tipo: str
+    imagen: Optional[str] = None
+
+@router.post("/market/parse")
+async def parse_market(request: MarketParseRequest):
+    """
+    Caitlyn analiza una captura de pantalla de un sitio de mercado (Playwright)
+    y devuelve los precios estructurados.
+    """
+    result = await MarketService.parse_market_image(request.tipo, request.imagen)
     return JSONResponse(content=result)

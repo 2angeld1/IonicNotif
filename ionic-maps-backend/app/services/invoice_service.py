@@ -11,6 +11,7 @@ from google import genai
 from google.genai import types
 from typing import Optional
 from app.services.caitlyn_vision_service import CaitlynVisionService
+from app.config import GEMINI_MODELS
 
 
 class InvoiceService:
@@ -87,11 +88,7 @@ class InvoiceService:
         return image_bytes, mime_type
 
     # Cascada de modelos: estable → latest → preview → OCR local
-    GEMINI_MODELS = [
-        "gemini-2.5-flash",              # Estable, el más confiable para visión
-        "gemini-flash-latest",           # Alias: siempre apunta al último estable
-        "gemini-3.1-flash-lite-preview", # Preview: rápido pero inestable
-    ]
+    GEMINI_MODELS = GEMINI_MODELS
 
     @classmethod
     async def process_invoice(cls, image_base64: str, negocio_tipo: str = "GASTRONOMIA") -> dict:

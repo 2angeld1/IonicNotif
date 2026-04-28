@@ -5,7 +5,7 @@ from google import genai
 from google.genai import types
 from typing import List, Dict, Optional
 from app.database import get_database
-from app.config import get_settings
+from app.config import get_settings, GEMINI_MODELS
 
 class ShoppingService:
     """
@@ -71,7 +71,7 @@ class ShoppingService:
 
         try:
             response = await client.aio.models.generate_content(
-                model="gemini-2.5-flash", # Estable para producción
+                model=GEMINI_MODELS[0], # Estable para producción
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=cls.SYSTEM_PROMPT,

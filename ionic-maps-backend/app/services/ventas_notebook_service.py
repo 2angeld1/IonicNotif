@@ -10,6 +10,7 @@ import re
 from google import genai
 from google.genai import types
 from typing import Optional, List, Dict
+from app.config import GEMINI_MODELS
 
 class VentasNotebookService:
     """Servicio dedicado a la extracción de ventas desde fotos de cuadernos o libretas."""
@@ -95,10 +96,8 @@ class VentasNotebookService:
             print(f"📖 VentasNotebookService: Procesando cuaderno ({len(image_bytes)} bytes) con {mime_type}")
             
             # Usar el mismo modelo que InvoiceService
-            model_name = os.getenv("GEMINI_MODEL_NOTEBOOK", "gemini-2.5-flash")
-            
             response = await client.aio.models.generate_content(
-                model=model_name,
+                model=GEMINI_MODELS[0],
                 contents=[
                     types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
                 ],
