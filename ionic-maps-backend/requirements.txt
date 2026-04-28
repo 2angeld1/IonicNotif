@@ -17,3 +17,4 @@ opencv-python-headless==4.9.0.80
 rapidfuzz==3.6.1
 easyocr==1.7.1
 cohere>=5.0.0
+duckduckgo-search==8.1.1

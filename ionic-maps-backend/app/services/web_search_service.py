@@ -14,7 +14,7 @@ class WebSearchService:
         
         try:
             with DDGS() as ddgs:
-                results = ddgs.text(query, region='pa-en', safesearch='off', timelimit='d', max_results=max_results)
+                results = ddgs.text(query, region='pa-es', safesearch='off', timelimit='m', max_results=max_results)
                 
                 if not results:
                     return []

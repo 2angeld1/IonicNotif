@@ -145,8 +145,10 @@ class MarketService:
                             if pdf_links:
                                 try:
                                     print(f"📄 Se encontraron PDFs. Caitlyn eligiendo el mejor...")
-                                    current_month = datetime.now().strftime("%B")
-                                    current_year = datetime.now().strftime("%Y")
+                                    month_names_es = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+                                    now = datetime.now()
+                                    current_month = month_names_es[now.month-1]
+                                    current_year = now.strftime("%Y")
                                     
                                     selection_prompt = (
                                         f"Hoy es {current_month} de {current_year}.\n"
