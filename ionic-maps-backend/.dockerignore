@@ -1,0 +1,26 @@
+# Entorno virtual local
+.venv
+__pycache__
+*.pyc
+*.pyo
+
+# Archivos de entorno (se inyectan en Railway/Docker como ENV vars)
+.env
+
+# Control de versiones
+.git
+.gitignore
+
+# Archivos de prueba y documentación
+*.png
+*.jpg
+test_*.py
+LOGISTICS_SAAS_BLUEPRINT.md
+README.md
+mcp_server.py
+
+# Archivos basura
+=0.8.0
+
+# Config específica de Railway (no necesaria con Docker)
+railpack.json
