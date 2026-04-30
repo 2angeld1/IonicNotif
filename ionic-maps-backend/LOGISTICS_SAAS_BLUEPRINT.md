@@ -1,8 +1,8 @@
 # 🚢 Mega-Blueprint: SaaS de Automatización Logística (Caitlyn Logistics)
 
 ## 📝 1. Visión del Problema y Solución
-- **El Dolor:** Los operadores logísticos pierden entre 30-60 minutos por booking haciendo copy-paste manual entre portales de navieras, sistemas de clientes, y plantillas de Word.
-- **La Solución:** Un "Agente IA" (Caitlyn) que orqueste la extracción, cruce de datos y generación de documentos en un flujo de **3 clicks**.
+- **El Dolor:** Los operadores logísticos pierden entre 30-60 minutos por booking haciendo copy-paste manual entre portales de navieras, sistemas de clientes, y plantillas de Word. Además, los errores humanos en declaraciones de aduanas resultan en multas costosas y retrasos.
+- **La Solución:** Un "Agente IA" (Caitlyn) que orqueste la extracción, validación cruzada y generación de documentos en un flujo de **3 clicks**, actuando como un filtro de seguridad contra errores.
 
 ---
 
@@ -54,20 +54,51 @@
 
 ---
 
-## 📊 7. Competencia y Oportunidad de Mercado
+## 📦 7. Módulos Especializados (Add-ons)
+
+### A. Módulo Aduanero (Prioridad: ALTA) 🛡️
+*   **Función:** Validación automática de declaraciones de aduana (SICEP/SIGA).
+*   **Valor:** Caitlyn actúa como un "Auditor IA". Compara la factura comercial con la declaración para detectar discrepancias en códigos arancelarios, pesos o valores antes de la sumisión.
+*   **Dolor que cura:** Evita multas por errores tipográficos y retrasos en puerto por datos incorrectos.
+
+### B. Cotizador Inteligente (Prioridad: Media) 📈
+*   **Función:** Scraping simultáneo de tarifas "Spot" en múltiples navieras para una ruta específica.
+*   **Valor:** Genera una tabla comparativa de costos y márgenes de ganancia en segundos.
+*   **Dolor que cura:** Elimina la pérdida de tiempo buscando precios en 5 sitios web distintos para responder a un cliente.
+
+---
+
+## 📊 8. Competencia y Oportunidad de Mercado
 - **Enterprise (CargoWise, Magaya, Shipamax):** Caros (+$3k/mo), lentos de implementar, y NO automatizan la búsqueda activa de info en portales externos; solo procesan lo que tú ya tienes.
 - **SaaS Moderno (cargo.one, Wisor, Raft):** Enfocados en ventas/cotizaciones o grandes cuentas.
 - **Tu Hueco:** El operador de LATAM/Panamá que necesita automatizar el "trabajo sucio" administrativo a un precio accesible ($50-150). **Nadie está haciendo el flujo de scraping activo + IA + generación de docs personalizados para el mercado SMB.**
 
 ---
 
-## 💰 8. Modelo de Negocio y Precios (Tiered/Hybrid)
-Cobrar $150 a una empresa de 100 empleados es injusto. El modelo debe escalar con el valor entregado y el costo de IA.
+## 💰 9. Modelo de Negocio y Precios (Value-Based Tiers)
 
-1.  **Plan Solo ($49/mo):** 1 usuario, 30 bookings/mes. Ideal para freelancers.
-2.  **Plan Equipo ($149/mo):** Hasta 5 usuarios, 150 bookings/mes. (Escalabilidad horizontal).
-3.  **Plan Enterprise (Custom):** +10 usuarios, volumen masivo. Licencia de sitio (Site License).
-4.  **Cargos por Uso:** Si se exceden de los bookings mensuales, se cobra un "Overload fee" ($1-$2 por doc) para cubrir costos de Gemini/Infra.
+### 🥉 Tier Starter ($49/mo) - "El Operador"
+*   **Ideal para:** Freelancers o agencias micro.
+*   **Incluye:** 
+    *   Automatización de Bookings básica (1 naviera a la vez).
+    *   Límite de 30 documentos/mes.
+    *   Generación de PDF estándar.
+
+### 🥈 Tier Pro ($149/mo) - "La Agencia Eficiente" 🚀
+*   **Ideal para:** Agencias de carga pymes (3-10 personas).
+*   **Incluye:** 
+    *   **Procesamiento en Paralelo (N por minuto):** Caitlyn abre múltiples hilos.
+    *   **Cotizador Inteligente:** Comparativa de tarifas Spot integrada.
+    *   **Lectura de Emails:** Caitlyn detecta confirmaciones en el Inbox automáticamente.
+    *   Límite de 200 documentos/mes.
+
+### 🥇 Tier Enterprise ($499+/mo) - "El Hub Logístico" 🛡️
+*   **Ideal para:** Grandes agencias o departamentos logísticos corporativos.
+*   **Incluye:** 
+    *   **Módulo Aduanero (Auditor IA):** Validación contra multas incluida.
+    *   **Whitelabel:** Documentos con branding premium y correos desde dominio propio.
+    *   **Usuarios Ilimitados:** Ideal para equipos de 20+ personas.
+    *   **Prioridad de Procesamiento:** Tus agentes de Playwright corren en servidores dedicados.
 
 ---
 
