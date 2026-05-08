@@ -8,6 +8,7 @@ from app.services.caitlyn_vision_service import CaitlynVisionService
 from app.services.shopping_service import ShoppingService
 from app.services.ventas_notebook_service import VentasNotebookService
 from app.services.market_service import MarketService
+from app.services.logistics_service import LogisticsService
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -24,6 +25,11 @@ class AgentResponse(BaseModel):
 class InvoiceRequest(BaseModel):
     imagen: str  # base64 de la imagen
     negocio_tipo: Optional[str] = "GASTRONOMIA"
+
+class LogisticsRequest(BaseModel):
+    origin: str
+    destination: str
+    arrival_date: Optional[str] = None
 
 class InvoiceResponse(BaseModel):
     success: bool
@@ -60,6 +66,14 @@ async def process_invoice(request: InvoiceRequest):
     """
     result = await InvoiceService.process_invoice(request.imagen, request.negocio_tipo)
     # 🏁 BLINDAJE DE TILDES: Forzamos UTF-8 puro sin escapes ASCII
+    return JSONResponse(content=result)
+
+@router.post("/logistics")
+async def get_logistics_itineraries(request: LogisticsRequest):
+    """
+    Endpoint para buscar itinerarios reales usando Playwright + EasyOCR.
+    """
+    result = await LogisticsService.get_itineraries(request.origin, request.destination, request.arrival_date)
     return JSONResponse(content=result)
 
 # --- Endpoints de Vision y Facturación ---

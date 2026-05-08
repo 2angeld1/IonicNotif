@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     mongodb_url: str = Field("mongodb://localhost:27017", validation_alias="MONGODB_URL")
     database_name: str = Field("ionic_maps", validation_alias="DATABASE_NAME")
     kitchy_database_name: str = Field("Kitchy", validation_alias="KITCHY_DATABASE_NAME")
+    muelle_database_name: str = Field("muelle", validation_alias="MUELLE_DATABASE_NAME")
     
     # OpenWeatherMap
     openweather_api_key: str = Field("", validation_alias="OPENWEATHER_API_KEY")
@@ -23,6 +24,10 @@ class Settings(BaseSettings):
     # AI Services
     gemini_api_key: str = Field("", validation_alias="GEMINI_API_KEY")
     cohere_api_key: str = Field("", validation_alias="COHERE_API_KEY")
+    
+    # Scrapers Credentials
+    searates_email: str = Field("", validation_alias="SEARATES_EMAIL")
+    searates_password: str = Field("", validation_alias="SEARATES_PASSWORD")
     
     class Config:
         env_file = ".env"

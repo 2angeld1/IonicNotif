@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+
+# Environment
+.env
+
+# Playwright & AI Sessions
+user_session*
+app/ai/sessions/
+app/ai/*.png
+app/ai/debug_*.png
+*.log
+
+# OS
+.DS_Store

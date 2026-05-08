@@ -55,6 +55,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import WebSocket, WebSocketDisconnect
+from app.services.socket_service import socket_manager
+
 # Routers
 app.include_router(trips.router)
 app.include_router(weather.router)
@@ -64,6 +67,19 @@ app.include_router(favorites.router)
 app.include_router(settings.router)
 app.include_router(convoy.router)
 app.include_router(agent.router)
+
+@app.websocket("/ws/caitlyn")
+async def websocket_endpoint(websocket: WebSocket):
+    await socket_manager.connect(websocket)
+    try:
+        while True:
+            # Esperamos cualquier mensaje del cliente o simplemente mantenemos vivo el socket
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        socket_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"❌ Error en websocket: {e}")
+        socket_manager.disconnect(websocket)
 
 
 

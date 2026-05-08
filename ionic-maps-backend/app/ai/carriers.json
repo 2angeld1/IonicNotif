@@ -1,0 +1,68 @@
+[
+    {
+        "name": "msc",
+        "url": "https://www.msc.com/en/search-a-schedule",
+        "file": "busqueda_msc.png",
+        "active": true
+    },
+    {
+        "name": "maersk",
+        "url": "https://www.maersk.com/schedules/",
+        "file": "busqueda_maersk.png",
+        "active": true
+    },
+    {
+        "name": "cma_cgm",
+        "url": "https://www.cma-cgm.com/ebusiness/schedules",
+        "file": "busqueda_cma.png",
+        "active": true
+    },
+    {
+        "name": "hapag_lloyd",
+        "url": "https://www.hapag-lloyd.com/en/online-business/schedule.html",
+        "file": "busqueda_hapag.png",
+        "active": true
+    },
+    {
+        "name": "cosco",
+        "url": "https://elines.coscoshipping.com/ebusiness/sailingSchedule/searchByCity",
+        "file": "busqueda_cosco.png",
+        "active": true
+    },
+    {
+        "name": "one",
+        "url": "https://ecomm.one-line.com/ecom/CUP_HOM_3001.do",
+        "file": "busqueda_one.png",
+        "active": false
+    },
+    {
+        "name": "evergreen",
+        "url": "https://www.shipmentlink.com/servlet/TDB1_Point2Point.do",
+        "file": "busqueda_evergreen.png",
+        "active": false
+    },
+    {
+        "name": "zim",
+        "url": "https://www.zim.com/tools/schedules",
+        "file": "busqueda_zim.png",
+        "active": false
+    },
+    {
+        "name": "yang_ming",
+        "url": "https://www.yangming.com/e-service/Schedule/PointToPoint_Search.aspx",
+        "file": "busqueda_yangming.png",
+        "active": false
+    },
+    {
+        "name": "hmm",
+        "url": "https://www.hmm21.com/cms/company/engn/index.jsp",
+        "file": "busqueda_hmm.png",
+        "active": false
+    },
+    {
+        "name": "wan_hai",
+        "url": "https://www.wanhai.com/views/webschedule/WSSchedule.xhtml",
+        "file": "busqueda_wanhai.png",
+        "active": false
+    }
+]
