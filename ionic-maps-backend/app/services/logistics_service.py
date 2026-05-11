@@ -4,6 +4,8 @@ import os
 import asyncio
 import logging
 import json
+from datetime import datetime, timedelta
+from app.database import get_database
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,28 @@ class LogisticsService:
         msg = f"🚢 Caitlyn iniciando búsqueda logística MULTI-FUENTE: {origin} -> {destination}"
         logger.info(msg)
         await socket_manager.broadcast(msg)
+        
+        # --- 0. CACHÉ DE RUTAS COMPLETAS (Memoria Maestra) ---
+        db = get_database()
+        route_key = f"{origin.strip().lower()}|||{destination.strip().lower()}"
+        
+        # Buscar caché que no tenga más de 24 horas
+        cached_route = await db.caitlyn_routes.find_one({"route_key": route_key})
+        
+        if cached_route:
+            # Comprobar expiración (opcional, p.ej. 24 horas)
+            fecha_cache = cached_route.get("created_at")
+            if fecha_cache and (datetime.utcnow() - fecha_cache) < timedelta(hours=24):
+                await socket_manager.broadcast(f"⚡ [CAITLYN] ¡Ruta '{origin}' a '{destination}' encontrada en Memoria Maestra! Sirviendo al instante.")
+                return {
+                    "success": True,
+                    "origin": cached_route["origin"],
+                    "destination": cached_route["destination"],
+                    "itineraries": cached_route["itineraries"],
+                    "message": f"¡Resultados instantáneos desde la memoria (Caché de {len(cached_route['itineraries'])} itinerarios)!"
+                }
+            else:
+                await socket_manager.broadcast(f"🔄 [CAITLYN] La memoria de esta ruta caducó. Volviendo a cazar...")
         
         # 1. Cargamos y filtramos las navieras activas
         misiones_activas = [m for m in cls._load_config() if m.get("active")]
@@ -72,6 +96,19 @@ class LogisticsService:
                 "success": False,
                 "message": "Caitlyn no pudo extraer itinerarios de ninguna naviera."
             }
+
+        # Guardar resultados exitosos en la Memoria Maestra (Caché de Ruta)
+        await db.caitlyn_routes.update_one(
+            {"route_key": route_key},
+            {"$set": {
+                "route_key": route_key,
+                "origin": origin,
+                "destination": destination,
+                "itineraries": itineraries,
+                "created_at": datetime.utcnow()
+            }},
+            upsert=True
+        )
 
         return {
             "success": True,

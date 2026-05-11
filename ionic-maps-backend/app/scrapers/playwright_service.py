@@ -7,6 +7,7 @@ from app.services.scraper_ai_service import ScraperAIService
 from app.scrapers.som_utils import SOM_JS
 from app.scrapers.port_utils import extraer_busqueda, detectar_sitio, sitio_soporta_locode
 from app.services.socket_service import socket_manager
+from app.database import get_database
 
 settings = get_settings()
 
@@ -90,51 +91,119 @@ class ScheduleHunterService:
                     
                     await cls._emit_log(f"🎯 [CAITLYN] [{site_name.upper()}] Buscando: '{origen_busqueda}' -> '{destino_busqueda}'")
                     
-                    # --- NAVEGACIÓN INTELIGENTE (AGENTIC VISION) ---
-                    await cls._emit_log(f"🧠 [CAITLYN] Escaneando interfaz visualmente con Gemini...")
+                    # --- NAVEGACIÓN INTELIGENTE (AGENTIC VISION CON CACHÉ) ---
+                    db = get_database()
+                    knowledge = await db.caitlyn_knowledge.find_one({"domain": site_name})
+                    used_cache = False
                     
-                    # Inyectar Set-of-Mark
-                    await page.evaluate(SOM_JS)
-                    await asyncio.sleep(1) # Esperar renderizado de etiquetas rojas
-                    
-                    som_screenshot = await page.screenshot(full_page=False) # Viewport es suficiente usualmente
-                    
-                    instrucciones = f"Busca el input para el puerto de origen, el de destino y el botón de búsqueda. Devuelve un JSON como {{\"origen\": 1, \"destino\": 2, \"buscar\": 3}}. Si no hay origen o destino, exclúyelos."
-                    
-                    try:
-                        targets = await ScraperAIService.get_som_target(som_screenshot, instrucciones)
-                        await cls._emit_log(f"🎯 [CAITLYN] Ojos de Gemini detectaron: {targets}")
+                    if knowledge and knowledge.get("origin_selector") and knowledge.get("dest_selector") and knowledge.get("button_selector"):
+                        await cls._emit_log(f"⚡ [CAITLYN] Memoria visual encontrada para {site_name}. Activando MODO BALA 🚀...")
+                        try:
+                            loc_origen = page.locator(knowledge["origin_selector"]).first
+                            if await loc_origen.is_visible(timeout=4000):
+                                await loc_origen.click()
+                                await loc_origen.fill("")
+                                await loc_origen.press_sequentially(origen_busqueda, delay=50)
+                                await asyncio.sleep(0.5)
+                                await page.keyboard.press("Enter")
+                                
+                                loc_dest = page.locator(knowledge["dest_selector"]).first
+                                if await loc_dest.is_visible(timeout=2000):
+                                    await loc_dest.click()
+                                    await loc_dest.fill("")
+                                    await loc_dest.press_sequentially(destino_busqueda, delay=50)
+                                    await asyncio.sleep(0.5)
+                                    await page.keyboard.press("Enter")
+                                
+                                loc_btn = page.locator(knowledge["button_selector"]).first
+                                if await loc_btn.is_visible(timeout=2000):
+                                    await loc_btn.click(force=True)
+                                
+                                await cls._emit_log(f"🎯 [CAITLYN] Formulario llenado a velocidad luz desde memoria.")
+                                used_cache = True
+                        except Exception as e:
+                            await cls._emit_log(f"⚠️ [CAITLYN] El MODO BALA falló (la interfaz cambió). Recurriendo a Gemini... {e}")
+                            used_cache = False
+
+                    if not used_cache:
+                        await cls._emit_log(f"🧠 [CAITLYN] Escaneando interfaz visualmente con Gemini (0 a 100)...")
                         
-                        if "origen" in targets:
-                            loc = page.locator(f"[data-som-id='{targets['origen']}']").first
-                            if await loc.is_visible(timeout=2000):
-                                await loc.click()
-                                await loc.fill("")
-                                await loc.press_sequentially(origen_busqueda, delay=100)
-                                await asyncio.sleep(1)
-                                await page.keyboard.press("Enter")
-                                await asyncio.sleep(1)
+                        # Inyectar Set-of-Mark
+                        await page.evaluate(SOM_JS)
+                        await asyncio.sleep(1) # Esperar renderizado de etiquetas rojas
+                        
+                        som_screenshot = await page.screenshot(full_page=False)
+                        
+                        instrucciones = f"Busca el input para el puerto de origen, el de destino y el botón de búsqueda. Devuelve un JSON como {{\"origen\": 1, \"destino\": 2, \"buscar\": 3}}. Si no hay origen o destino, exclúyelos."
+                        
+                        try:
+                            targets = await ScraperAIService.get_som_target(som_screenshot, instrucciones)
+                            await cls._emit_log(f"🎯 [CAITLYN] Ojos de Gemini detectaron: {targets}")
+                            
+                            # Script JS para extraer selector robusto de Playwright
+                            js_extractor = """el => {
+                                if (el.id) return '#' + el.id;
+                                if (el.name) return el.tagName.toLowerCase() + '[name="' + el.name + '"]';
+                                if (el.placeholder) return el.tagName.toLowerCase() + '[placeholder="' + el.placeholder + '"]';
+                                if (el.className) {
+                                    let cls = el.className.split(' ').filter(c => c && !c.includes('hover')).join('.');
+                                    if (cls) return el.tagName.toLowerCase() + '.' + cls;
+                                }
+                                return null;
+                            }"""
+                            
+                            new_knowledge = {}
+                            
+                            if "origen" in targets:
+                                loc = page.locator(f"[data-som-id='{targets['origen']}']").first
+                                if await loc.is_visible(timeout=2000):
+                                    sel = await loc.evaluate(js_extractor)
+                                    if sel: new_knowledge["origin_selector"] = sel
+                                    
+                                    await loc.click()
+                                    await loc.fill("")
+                                    await loc.press_sequentially(origen_busqueda, delay=100)
+                                    await asyncio.sleep(1)
+                                    await page.keyboard.press("Enter")
+                                    await asyncio.sleep(1)
+                                    
+                            if "destino" in targets:
+                                loc = page.locator(f"[data-som-id='{targets['destino']}']").first
+                                if await loc.is_visible(timeout=2000):
+                                    sel = await loc.evaluate(js_extractor)
+                                    if sel: new_knowledge["dest_selector"] = sel
+
+                                    await loc.click()
+                                    await loc.fill("")
+                                    await loc.press_sequentially(destino_busqueda, delay=100)
+                                    await asyncio.sleep(1)
+                                    await page.keyboard.press("Enter")
+                                    await asyncio.sleep(1)
+                                    
+                            if "buscar" in targets:
+                                loc = page.locator(f"[data-som-id='{targets['buscar']}']").first
+                                if await loc.is_visible(timeout=2000):
+                                    sel = await loc.evaluate(js_extractor)
+                                    if sel: new_knowledge["button_selector"] = sel
+
+                                    await loc.click(force=True)
+                                    
+                            await cls._emit_log(f"🎯 [CAITLYN] Acción disparada mediante IA Visual.")
+                            
+                            # Memorizar (Caching) si logramos extraer al menos origen y botón
+                            if new_knowledge.get("origin_selector") and new_knowledge.get("button_selector"):
+                                new_knowledge["domain"] = site_name
+                                await db.caitlyn_knowledge.update_one(
+                                    {"domain": site_name},
+                                    {"$set": new_knowledge},
+                                    upsert=True
+                                )
+                                await cls._emit_log(f"🧠 [CAITLYN] ¡Aprendizaje guardado en BD para futuras búsquedas en {site_name}! Se usarán selectores la próxima vez.")
                                 
-                        if "destino" in targets:
-                            loc = page.locator(f"[data-som-id='{targets['destino']}']").first
-                            if await loc.is_visible(timeout=2000):
-                                await loc.click()
-                                await loc.fill("")
-                                await loc.press_sequentially(destino_busqueda, delay=100)
-                                await asyncio.sleep(1)
-                                await page.keyboard.press("Enter")
-                                await asyncio.sleep(1)
-                                
-                        if "buscar" in targets:
-                            loc = page.locator(f"[data-som-id='{targets['buscar']}']").first
-                            if await loc.is_visible(timeout=2000):
-                                await loc.click(force=True)
-                                
-                        await cls._emit_log(f"🎯 [CAITLYN] Acción disparada mediante IA Visual.")
-                    except Exception as e:
-                        await cls._emit_log(f"⚠️ [CAITLYN] Falló el agente visual: {e}")
-                        # Fallback a ENTER
-                        await page.keyboard.press("Enter")
+                        except Exception as e:
+                            await cls._emit_log(f"⚠️ [CAITLYN] Falló el agente visual: {e}")
+                            # Fallback a ENTER
+                            await page.keyboard.press("Enter")
 
                     # --- RESULTADOS Y CAPTURA ---
                     await cls._emit_log(f"⏳ [CAITLYN] Esperando resultados...")
