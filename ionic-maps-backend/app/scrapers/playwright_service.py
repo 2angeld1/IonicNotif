@@ -3,7 +3,8 @@ import os
 import re
 from playwright.async_api import async_playwright
 from app.config import get_settings
-from app.scrapers.smart_finder import SmartFinder
+from app.services.scraper_ai_service import ScraperAIService
+from app.scrapers.som_utils import SOM_JS
 from app.scrapers.port_utils import extraer_busqueda, detectar_sitio, sitio_soporta_locode
 from app.services.socket_service import socket_manager
 
@@ -31,7 +32,8 @@ class ScheduleHunterService:
 
                 context = await p.chromium.launch_persistent_context(
                     user_data_dir,
-                    headless=True, 
+                    headless=False, 
+                    channel="chrome",  # Usar Chrome real en lugar del Chromium de Playwright
                     slow_mo=150,
                     args=[
                         "--disable-blink-features=AutomationControlled",
@@ -40,13 +42,17 @@ class ScheduleHunterService:
                         "--no-default-browser-check",
                         "--disable-component-update",
                     ],
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                     viewport={'width': 1280, 'height': 800},
                     locale="en-US",
                 )
                 
                 try:
                     page = context.pages[0] if context.pages else await context.new_page()
+                    
+                    # Aplicar Stealth mode para evadir detección básica de bots
+                    from playwright_stealth import Stealth
+                    await Stealth().apply_stealth_async(page)
+                    await cls._emit_log(f"🥷 [CAITLYN] Modo Stealth activado para evadir anti-bots")
                     
                     # --- NAVEGAR ---
                     print(f"🌐 [CAITLYN] Abriendo portal: {target_url}")
@@ -59,21 +65,23 @@ class ScheduleHunterService:
                     # Esperamos un poco más para que JS/Web Components se rendericen
                     await asyncio.sleep(5)
 
-                    # --- SCREENSHOT DE DEBUG (para ver qué ve Caitlyn) ---
-                    debug_path = f"app/ai/debug_{screenshot_name}"
-                    await page.screenshot(path=debug_path, full_page=True)
                     
                     # --- LIMPIEZA DE BANNERS (COOKIES) ---
-                    await cls._emit_log(f"🧹 [CAITLYN] Limpiando banners de cookies...")
+                    await cls._emit_log(f"🧹 [CAITLYN] Limpiando banners de cookies y modales...")
                     try:
-                        # Buscamos botones de "Accept All", "Agree", "Allow all"
-                        cookies_btn = page.locator('button:has-text("Accept"), button:has-text("Agree"), button:has-text("Allow"), button[id*="cookie-accept"]').first
+                        # Buscamos botones de "Accept All", "Agree", "Allow all", "Select All"
+                        cookies_btn = page.locator('button:has-text("Accept"), button:has-text("Agree"), button:has-text("Allow"), button:has-text("Select All"), button[id*="cookie-accept"]').first
                         if await cookies_btn.is_visible(timeout=5000):
                             await cookies_btn.click()
                             await cls._emit_log("✅ [CAITLYN] Cookies aceptadas")
                             await asyncio.sleep(2)
                     except:
                         pass
+                        
+                    # Presionar ESC para cerrar encuestas, "Ask Maersk" o popups molestos
+                    await page.keyboard.press("Escape")
+                    await asyncio.sleep(1)
+                    await page.keyboard.press("Escape")
 
                     # --- EXTRAER TÉRMINOS DE BÚSQUEDA ---
                     usa_locode = sitio_soporta_locode(target_url)
@@ -82,71 +90,51 @@ class ScheduleHunterService:
                     
                     await cls._emit_log(f"🎯 [CAITLYN] [{site_name.upper()}] Buscando: '{origen_busqueda}' -> '{destino_busqueda}'")
                     
-                    # 1. Origen
-                    origin_loc = await SmartFinder.find_origin(page)
-                    origin_coords = None
-                    if origin_loc:
-                        box = await origin_loc.bounding_box()
-                        if box: origin_coords = {"x": box['x'] + box['width']/2, "y": box['y'] + box['height']/2}
+                    # --- NAVEGACIÓN INTELIGENTE (AGENTIC VISION) ---
+                    await cls._emit_log(f"🧠 [CAITLYN] Escaneando interfaz visualmente con Gemini...")
                     
-                    if await SmartFinder.smart_fill(page, origin_loc, origen_busqueda):
-                        await cls._emit_log(f"✅ [CAITLYN] Origen rellenado: {origen_busqueda}")
-                        await asyncio.sleep(2) # Esperar a que salgan sugerencias
-                        await page.keyboard.press("Enter") # Intentar seleccionar el primero
-                        await asyncio.sleep(1)
-                    else:
-                        await cls._emit_log(f"❌ [CAITLYN] No se pudo rellenar el Origen")
-
-                    # 2. Destino
-                    dest_loc = await SmartFinder.find_destination(page, exclude_coords=origin_coords)
-                    if await SmartFinder.smart_fill(page, dest_loc, destino_busqueda):
-                        await cls._emit_log(f"✅ [CAITLYN] Destino rellenado: {destino_busqueda}")
-                        await asyncio.sleep(2)
-                        await page.keyboard.press("Enter")
-                        await asyncio.sleep(1)
-                    else:
-                        await cls._emit_log(f"❌ [CAITLYN] No se pudo rellenar el Destino")
-
-                    # 2.5 Fecha (ETA)
-                    if arrival_date:
-                        date_input = await SmartFinder.find_date_input(page)
-                        if date_input:
-                            # 🧠 DETECCIÓN DINÁMICA DE FORMATO
-                            formato = await SmartFinder.detectar_formato_fecha(date_input)
-                            fecha_formateada = arrival_date.replace("-", "/") # Default
-                            
-                            if formato:
-                                y, m, d = arrival_date.split("-")
-                                mapping = {"y": y, "m": m, "d": d}
-                                try:
-                                    fecha_formateada = formato["sep"].join([mapping[p] for p in formato["order"]])
-                                    await cls._emit_log(f"🧠 [CAITLYN] Formato detectado dinámicamente: {fecha_formateada}")
-                                except: pass
-                            elif "msc" in target_url:
-                                y, m, d = arrival_date.split("-")
-                                fecha_formateada = f"{m}/{d}/{y}"
-
-                            await cls._emit_log(f"⏳ [CAITLYN] Rellenando fecha con sigilo...")
-                            try:
-                                # Inyectar valor vía JS + disparar validaciones (input, change, blur)
-                                await date_input.evaluate(f"(el, val) => {{ el.value = val; el.dispatchEvent(new Event('input', {{ bubbles: true }})); el.dispatchEvent(new Event('change', {{ bubbles: true }})); el.dispatchEvent(new Event('blur', {{ bubbles: true }})); }}", fecha_formateada)
+                    # Inyectar Set-of-Mark
+                    await page.evaluate(SOM_JS)
+                    await asyncio.sleep(1) # Esperar renderizado de etiquetas rojas
+                    
+                    som_screenshot = await page.screenshot(full_page=False) # Viewport es suficiente usualmente
+                    
+                    instrucciones = f"Busca el input para el puerto de origen, el de destino y el botón de búsqueda. Devuelve un JSON como {{\"origen\": 1, \"destino\": 2, \"buscar\": 3}}. Si no hay origen o destino, exclúyelos."
+                    
+                    try:
+                        targets = await ScraperAIService.get_som_target(som_screenshot, instrucciones)
+                        await cls._emit_log(f"🎯 [CAITLYN] Ojos de Gemini detectaron: {targets}")
+                        
+                        if "origen" in targets:
+                            loc = page.locator(f"[data-som-id='{targets['origen']}']").first
+                            if await loc.is_visible(timeout=2000):
+                                await loc.click()
+                                await loc.fill("")
+                                await loc.press_sequentially(origen_busqueda, delay=100)
                                 await asyncio.sleep(1)
-                                await cls._emit_log(f"✅ [CAITLYN] Fecha inyectada y validada: {fecha_formateada}")
-                            except:
-                                await SmartFinder.smart_fill(page, date_input, fecha_formateada)
-                            
-                            await page.keyboard.press("Enter")
-                            await asyncio.sleep(1)
-
-                    # 3. Buscar
-                    search_btn = await SmartFinder.find_search_button(page)
-                    if search_btn:
-                        await cls._emit_log(f"🎯 [CAITLYN] Botón de búsqueda localizado, haciendo click...")
-                        await search_btn.click(force=True)
-                    else:
-                        await cls._emit_log(f"⚠️ [CAITLYN] No se encontró el botón, usando ENTER de emergencia...")
+                                await page.keyboard.press("Enter")
+                                await asyncio.sleep(1)
+                                
+                        if "destino" in targets:
+                            loc = page.locator(f"[data-som-id='{targets['destino']}']").first
+                            if await loc.is_visible(timeout=2000):
+                                await loc.click()
+                                await loc.fill("")
+                                await loc.press_sequentially(destino_busqueda, delay=100)
+                                await asyncio.sleep(1)
+                                await page.keyboard.press("Enter")
+                                await asyncio.sleep(1)
+                                
+                        if "buscar" in targets:
+                            loc = page.locator(f"[data-som-id='{targets['buscar']}']").first
+                            if await loc.is_visible(timeout=2000):
+                                await loc.click(force=True)
+                                
+                        await cls._emit_log(f"🎯 [CAITLYN] Acción disparada mediante IA Visual.")
+                    except Exception as e:
+                        await cls._emit_log(f"⚠️ [CAITLYN] Falló el agente visual: {e}")
+                        # Fallback a ENTER
                         await page.keyboard.press("Enter")
-                    await cls._emit_log(f"🎯 [CAITLYN] Búsqueda disparada en {target_url}")
 
                     # --- RESULTADOS Y CAPTURA ---
                     await cls._emit_log(f"⏳ [CAITLYN] Esperando resultados...")
@@ -156,11 +144,21 @@ class ScheduleHunterService:
                     await page.screenshot(path=screenshot_path, full_page=True)
                     print(f"📸 [CAITLYN] Captura completada: {screenshot_path}")
                     
-                    return {"status": "success", "screenshot": screenshot_path}
+                    # --- EXTRACCIÓN CON COHERE ---
+                    await cls._emit_log(f"🧠 [CAITLYN] Leyendo y extrayendo resultados con Cohere...")
+                    # Limpiamos JS inyectado previamente (SOM) si es que interfiriera, aunque lo quitamos al recargar.
+                    # Extraer el innerText es super rápido y limpio
+                    try:
+                        raw_html_text = await page.evaluate("document.body.innerText")
+                        itineraries = await ScraperAIService.extract_schedules_json(raw_html_text)
+                        await cls._emit_log(f"✅ [CAITLYN] Extracción perfecta: {len(itineraries)} itinerarios encontrados.")
+                        return {"status": "success", "data": itineraries, "screenshot": screenshot_path}
+                    except Exception as e:
+                        await cls._emit_log(f"❌ [CAITLYN] Error de Cohere extrayendo texto: {e}")
+                        return {"status": "error", "message": f"Fallo extracción: {e}", "screenshot": screenshot_path}
 
                 finally:
                     await context.close()
-
         except Exception as e:
             print(f"❌ [CAITLYN] Error crítico en misión {target_url}: {e}")
             return {"status": "error", "message": str(e)}

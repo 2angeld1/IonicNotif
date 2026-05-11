@@ -5,6 +5,6 @@ echo "🧠 Entrenando IA de Navegación..."
 python train_ai.py
 
 # 2. Iniciar el servidor
-echo "🚀 Iniciando Ionic Notif Backend..."
+echo "🚀 Iniciando Ionic Notif Backend con Xvfb..."
 # Usamos el puerto asignado por Railway ($PORT) o 8000 por defecto
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+exec xvfb-run --auto-servernum uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

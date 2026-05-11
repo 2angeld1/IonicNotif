@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrandr2 \
     libgbm1 \
     libasound2 \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar archivos de dependencias primero (cache de Docker)

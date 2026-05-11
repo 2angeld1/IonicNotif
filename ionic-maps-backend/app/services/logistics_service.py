@@ -1,5 +1,4 @@
 from app.scrapers.playwright_service import ScheduleHunterService
-from app.scrapers.ocr_service import OCRService
 from app.services.socket_service import socket_manager
 import os
 import asyncio
@@ -54,21 +53,24 @@ class LogisticsService:
                 
             if res.get("status") == "success":
                 source_name = mision["name"].upper()
-                img_path = res.get("screenshot")
+                source_itineraries = res.get("data", [])
                 
-                try:
-                    await socket_manager.broadcast(f"🔍 [OCR] Procesando resultados de {source_name}...")
-                    raw_text = OCRService.extract_text_from_image(img_path)
-                    # Procesamos este bloque de texto específico para esta fuente
-                    source_itineraries = cls._parse_itineraries(raw_text, origin, destination, source_name)
+                if source_itineraries:
+                    # Añadimos la marca de la naviera a cada registro
+                    for it in source_itineraries:
+                        it["source"] = source_name
                     itineraries.extend(source_itineraries)
-                except Exception as e:
-                    logger.error(f"❌ Error procesando OCR/Parsing para {source_name}: {e}")
+                    await socket_manager.broadcast(f"✅ [CAITLYN] {len(source_itineraries)} itinerarios integrados desde {source_name}")
+                else:
+                    logger.warning(f"⚠️ Misión {source_name} exitosa pero devolvió 0 itinerarios.")
+                    
+            elif res.get("status") == "error":
+                logger.error(f"❌ Misión {mision['name']} reportó error: {res.get('message')}")
 
         if not itineraries:
             return {
                 "success": False,
-                "message": "Caitlyn no pudo encontrar resultados legibles en ninguna de las fuentes."
+                "message": "Caitlyn no pudo extraer itinerarios de ninguna naviera."
             }
 
         return {
@@ -76,57 +78,5 @@ class LogisticsService:
             "origin": origin,
             "destination": destination,
             "itineraries": itineraries,
-            "message": f"¡Caitlyn ha cazado {len(itineraries)} itinerarios en {len(misiones_activas)} fuentes diferentes!"
+            "message": f"¡Caitlyn ha cazado {len(itineraries)} itinerarios en {len(misiones_activas)} fuentes!"
         }
-
-    @classmethod
-    def _parse_itineraries(cls, raw_text, origin, destination, source_name):
-        """
-        Parser interno que procesa una lista de textos y devuelve itinerarios etiquetados.
-        """
-        results = []
-        navieras_conocidas = [
-            "maersk", "msc", "cma", "hapag", "evergreen", "cosco", "ocean", 
-            "yang ming", "one", "zim", "wan hai", "hyundai", "hmm", "pilot",
-            "sealand", "hamburg", "arkas", "grimaldi", "safmarine"
-        ]
-        
-        current_itinerary = {"source": source_name}
-        
-        for i, text in enumerate(raw_text):
-            text_lower = text.lower()
-            
-            # Detectar Naviera
-            if not current_itinerary.get("shipping_line"):
-                for n in navieras_conocidas:
-                    if n in text_lower:
-                        current_itinerary["shipping_line"] = text
-                        break
-            
-            # Detectar Precio
-            if not current_itinerary.get("price"):
-                if "$" in text or "usd" in text_lower:
-                    current_itinerary["price"] = text
-                elif text.replace(",","").replace(".","").isdigit() and len(text) >= 3:
-                    if (i+1 < len(raw_text) and "usd" in raw_text[i+1].lower()) or \
-                       (i-1 >= 0 and "usd" in raw_text[i-1].lower()):
-                        current_itinerary["price"] = f"USD {text}"
-
-            # Detectar Tiempo
-            if not current_itinerary.get("transit_time"):
-                if "day" in text_lower or "direct" in text_lower or "stop" in text_lower:
-                    current_itinerary["transit_time"] = text
-            
-            # Cierre de Box
-            if current_itinerary.get("shipping_line") and current_itinerary.get("price"):
-                if current_itinerary.get("transit_time") or i == len(raw_text) - 1:
-                    results.append(current_itinerary)
-                    current_itinerary = {"source": source_name}
-            
-            # Reinicio por ciudad
-            if origin.lower() in text_lower or destination.lower() in text_lower:
-                if current_itinerary.get("shipping_line"):
-                    results.append(current_itinerary)
-                current_itinerary = {"source": source_name}
-
-        return results

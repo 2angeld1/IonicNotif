@@ -48,15 +48,18 @@ def extraer_busqueda(texto: str, usar_locode: bool = True) -> str:
     return f"{nombre} {contexto}".strip() if contexto else nombre
 
 
+import urllib.parse
+
 def detectar_sitio(url: str) -> str:
-    """Extrae el nombre del sitio de la URL."""
-    if "maersk" in url:
-        return "maersk"
-    elif "msc" in url:
-        return "msc"
-    elif "searates" in url:
-        return "searates"
-    return "general"
+    """Extrae el nombre base del dominio de la URL de forma dinámica."""
+    try:
+        domain = urllib.parse.urlparse(url).netloc
+        # Ejemplo: www.msc.com -> msc.com -> msc
+        # Ejemplo: elines.coscoshipping.com -> elines
+        nombre_base = domain.replace("www.", "").split(".")[0]
+        return nombre_base if nombre_base else "general"
+    except:
+        return "general"
 
 
 def sitio_soporta_locode(url: str) -> bool:

@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     debug: bool = Field(True, validation_alias="DEBUG")
     
     # AI Services
-    gemini_api_key: str = Field("", validation_alias="GEMINI_API_KEY")
+    kitchy_gemini_api_key: str = Field("", validation_alias="KITCHY_GEMINI_API_KEY")
+    muelle_gemini_api_key: str = Field("", validation_alias="MUELLE_GEMINI_API_KEY")
     cohere_api_key: str = Field("", validation_alias="COHERE_API_KEY")
     
     # Scrapers Credentials
