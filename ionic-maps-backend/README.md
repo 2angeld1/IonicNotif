@@ -114,3 +114,16 @@ ionic-maps-backend/
 ├── run.py
 └── .env
 ```
+
+## 🌐 Ejecutar con Navegadores Ocultos (Playwright)
+
+Caitlyn utiliza **Playwright** para la automatización logística. En servidores Linux (como tu máquina), Playwright necesita una "pantalla virtual" para poder abrir los navegadores sin dar error. 
+
+Para ejecutar el servidor con esta librería activa, utiliza el siguiente comando:
+
+```bash
+# Iniciar con pantalla virtual (xvfb-run)
+xvfb-run -a python run.py
+```
+
+*Nota: Asegúrate de tener instalados los navegadores primero ejecutando `playwright install` dentro de tu entorno virtual.*
