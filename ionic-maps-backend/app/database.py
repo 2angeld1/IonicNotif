@@ -14,9 +14,21 @@ db = Database()
 
 
 async def connect_to_mongo():
-    """Conectar a MongoDB"""
-    db.client = AsyncIOMotorClient(settings.mongodb_url)
-    print(f"✅ Conectado a MongoDB: {settings.mongodb_url}", file=sys.stderr)
+    """Conectar a MongoDB con timeout para evitar bloqueos"""
+    try:
+        # Añadimos un timeout corto (2 segundos) para que no se quede colgado
+        db.client = AsyncIOMotorClient(
+            settings.mongodb_url, 
+            serverSelectionTimeoutMS=2000
+        )
+        # Intentamos una operación rápida para verificar la conexión
+        await db.client.admin.command('ping')
+        print(f"✅ Conectado a MongoDB: {settings.mongodb_url}", file=sys.stderr)
+    except Exception as e:
+        db.client = None
+        print(f"⚠️ MODO OFFLINE: No se pudo conectar a MongoDB ({e})", file=sys.stderr)
+        print("💡 La app seguirá funcionando pero sin persistencia en DB.", file=sys.stderr)
+
     
     
 async def close_mongo_connection():
