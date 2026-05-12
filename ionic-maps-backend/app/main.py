@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.database import connect_to_mongo, close_mongo_connection
-from app.services.ml_service import MLService
+from app.services.ai.ml_service import MLService
 from app.routers import routes, incidents, trips, weather, favorites, settings, convoy, agent
 from app.config import get_settings
 
@@ -56,7 +56,7 @@ app.add_middleware(
 )
 
 from fastapi import WebSocket, WebSocketDisconnect
-from app.services.socket_service import socket_manager
+from app.services.core.socket_service import socket_manager
 
 # Routers
 app.include_router(trips.router)
@@ -99,7 +99,7 @@ async def health():
     """Health check"""
     trips_count = 0
     try:
-        from app.services.trip_service import TripService
+        from app.services.maps.trip_service import TripService
         trips_count = await TripService.get_trips_count()
     except:
         pass

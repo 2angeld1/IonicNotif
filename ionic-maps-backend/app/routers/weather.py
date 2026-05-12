@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.models.schemas import WeatherInfo
-from app.services.weather_service import WeatherService
+from app.services.core.weather_service import WeatherService
 
 router = APIRouter(prefix="/weather", tags=["Clima"])
 

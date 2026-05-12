@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
-from app.services.weather_service import WeatherService
-from app.services.routing_service import RoutingService
-from app.services.search_service import SearchService
+from app.services.core.weather_service import WeatherService
+from app.services.maps.routing_service import RoutingService
+from app.services.core.search_service import SearchService
 from app.models.schemas import LatLng
 
 # Crear el servidor MCP de IonicNotif
@@ -62,7 +62,7 @@ async def calculate_route_metrics(start_lat: float, start_lng: float, end_lat: f
 async def get_my_favorite_places() -> str:
     """Lista los lugares favoritos del usuario (Casa, Trabajo, etc) con coordenadas."""
     await _ensure_mongo()
-    from app.services.favorite_service import FavoriteService
+    from app.services.core.favorite_service import FavoriteService
     favorites = await FavoriteService.get_favorites()
     if not favorites:
         return "No tienes lugares favoritos guardados."
@@ -76,7 +76,7 @@ async def get_my_favorite_places() -> str:
 async def report_road_incident(lat: float, lng: float, description: str, incident_type: str = "hazard") -> str:
     """Reporta una incidencia vial (accident, police, hazard, road_work, animal)."""
     await _ensure_mongo()
-    from app.services.incident_service import IncidentService
+    from app.services.maps.incident_service import IncidentService
     from app.models.schemas import IncidentCreate, IncidentType, IncidentSeverity
     try:
         inc_type = IncidentType(incident_type.lower())
@@ -107,7 +107,7 @@ async def set_active_navigation(stops_json: str) -> str:
 async def check_nearby_incidents(lat: float, lng: float, radius_km: float = 10.0) -> str:
     """Busca peligros reportados cerca de una ubicación."""
     await _ensure_mongo()
-    from app.services.incident_service import IncidentService
+    from app.services.maps.incident_service import IncidentService
     incidents = await IncidentService.get_active_incidents(
         near_location=LatLng(lat=lat, lng=lng),
         radius_km=radius_km

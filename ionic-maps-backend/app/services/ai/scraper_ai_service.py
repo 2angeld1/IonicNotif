@@ -1,7 +1,8 @@
 import os
 import json
 import base64
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import cohere
 from PIL import Image
 import io
@@ -17,11 +18,11 @@ class ScraperAIService:
     """
 
     @classmethod
-    def _init_gemini(cls):
+    def _get_gemini_client(cls):
         settings = get_settings()
         if not settings.muelle_gemini_api_key:
             raise ValueError("No se encontró MUELLE_GEMINI_API_KEY en .env")
-        genai.configure(api_key=settings.muelle_gemini_api_key)
+        return genai.Client(api_key=settings.muelle_gemini_api_key)
 
     @classmethod
     def _init_cohere(cls):
@@ -37,7 +38,7 @@ class ScraperAIService:
         Pide que identifique qué ID corresponde a la instrucción dada.
         Retorna un dict, ej: {"origen": 15, "destino": 22, "buscar": 45} o el ID del elemento buscado.
         """
-        cls._init_gemini()
+        client = cls._get_gemini_client()
         img = Image.open(io.BytesIO(screenshot_bytes))
 
         prompt = f"""
@@ -53,8 +54,10 @@ class ScraperAIService:
         for model_name in GEMINI_MODELS:
             print(f"🤖 [ScraperAI - Gemini] Intentando con modelo: {model_name}")
             try:
-                model = genai.GenerativeModel(model_name)
-                response = await model.generate_content_async([prompt, img])
+                response = await client.aio.models.generate_content(
+                    model=model_name,
+                    contents=[prompt, img]
+                )
                 
                 text = response.text.strip()
                 # Limpieza por si Gemini insiste en poner markdown
@@ -100,7 +103,10 @@ class ScraperAIService:
             "arrival_date": "Fecha de llegada",
             "transit_time": "Tiempo de tránsito (ej: '14 days')",
             "origin": "Puerto de origen",
-            "destination": "Puerto de destino"
+            "destination": "Puerto de destino",
+            "transshipments": "Número de paradas o transbordos (ej: '0' o 'Direct', '1 stop')",
+            "co2_emissions": "Emisiones de CO2 si se mencionan en el texto (ej: '1.2 tons')",
+            "vessel_type": "Tipo de buque si se menciona (ej: 'Eco-ship', 'Standard')"
           }}
         ]
         
@@ -132,3 +138,49 @@ class ScraperAIService:
                 continue
                 
         raise Exception("❌ Todos los modelos de Cohere fallaron en la extracción de texto.")
+
+    @classmethod
+    async def parse_logistics_document(cls, base64_image: str) -> dict:
+        """
+        Extrae Origen y Destino a partir de la foto de un documento (Packing List, Factura).
+        Usa Gemini Vision.
+        """
+        client = cls._get_gemini_client()
+        
+        # Limpiar prefijo base64 si existe
+        if "," in base64_image:
+            base64_image = base64_image.split(",")[1]
+            
+        img_data = base64.b64decode(base64_image)
+        img = Image.open(io.BytesIO(img_data))
+
+        prompt = """
+        Eres un analista de comercio exterior experto.
+        La imagen adjunta es un documento logístico (puede ser Packing List, Comercial Invoice, o Bill of Lading).
+        Tu tarea es identificar el Puerto de Origen (Puerto de Carga / Port of Loading) y el Puerto de Destino (Puerto de Descarga / Port of Discharge).
+        
+        Devuelve ÚNICAMENTE un JSON válido con esta estructura:
+        {
+          "origen": "Nombre del puerto y país (ej: Shanghai, China)",
+          "destino": "Nombre del puerto y país (ej: Manzanillo, Mexico)"
+        }
+        
+        Si no encuentras alguno, usa null. No devuelvas markdown ni texto adicional.
+        """
+
+        for model_name in GEMINI_MODELS:
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model_name,
+                    contents=[prompt, img]
+                )
+                
+                text = response.text.strip()
+                if text.startswith("```json"): text = text.replace("```json", "", 1)
+                if text.endswith("```"): text = text[:-3]
+                
+                return json.loads(text.strip())
+            except Exception as e:
+                continue
+                
+        return {"origen": None, "destino": None}

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from app.models.schemas import Trip, TripCreate
-from app.services.trip_service import TripService
-from app.services.ml_service import MLService
+from app.services.maps.trip_service import TripService
+from app.services.ai.ml_service import MLService
 
 router = APIRouter(prefix="/trips", tags=["Viajes"])
 

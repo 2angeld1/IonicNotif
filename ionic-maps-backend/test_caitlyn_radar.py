@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Cargamos entorno ANTES de importar servicios
 load_dotenv()
 
-from app.services.market_service import MarketService
+from app.services.kitchy.market_service import MarketService
 from app.database import connect_to_mongo, close_mongo_connection
 import json
 

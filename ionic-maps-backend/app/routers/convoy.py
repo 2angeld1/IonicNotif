@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Body
 from app.models.schemas import Convoy, ConvoyCreate, ConvoyJoin, ConvoyUpdate
-from app.services.convoy_service import ConvoyService
+from app.services.maps.convoy_service import ConvoyService
 
 from app.database import get_database
 

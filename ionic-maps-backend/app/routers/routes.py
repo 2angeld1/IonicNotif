@@ -5,10 +5,10 @@ from app.models.schemas import (
     RouteInfo,
     Incident
 )
-from app.services.routing_service import RoutingService
-from app.services.weather_service import WeatherService
-from app.services.incident_service import IncidentService
-from app.services.ml_service import MLService
+from app.services.maps.routing_service import RoutingService
+from app.services.core.weather_service import WeatherService
+from app.services.maps.incident_service import IncidentService
+from app.services.ai.ml_service import MLService
 
 router = APIRouter(prefix="/routes", tags=["Rutas"])
 

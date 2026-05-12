@@ -5,8 +5,8 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 from typing import Optional
-from app.services.invoice_service import InvoiceService
-from app.services.web_search_service import WebSearchService
+from app.services.kitchy.invoice_service import InvoiceService
+from app.services.core.web_search_service import WebSearchService
 from app.config import get_settings, GEMINI_MODELS
 from app.database import get_database
 
@@ -111,7 +111,7 @@ class MarketService:
                 
                 # OCR Fallback
                 try:
-                    from app.services.caitlyn_vision_service import CaitlynVisionService
+                    from app.services.ai.caitlyn_vision_service import CaitlynVisionService
                     ocr_result = await CaitlynVisionService.blind_scan_invoice(image_base64)
                     return {"success": True, "data": ocr_result.get("productos", []), "metodo": "local_ocr_fallback"}
                 except: pass
@@ -124,7 +124,7 @@ class MarketService:
                     db = get_database(get_settings().kitchy_database_name)
                     source_doc = await db["market_sources"].find_one({"tipo": tipo})
                     
-                    from app.services.direct_scraper_service import DirectScraperService
+                    from app.services.logistics.direct_scraper_service import DirectScraperService
                     
                     # Consolidamos URLs: las aprendidas + la oficial por defecto
                     candidate_urls = source_doc.get("urls", []) if source_doc else []
@@ -210,7 +210,7 @@ class MarketService:
                                     except Exception as gemini_err:
                                         print(f"⚠️ Falló lectura de PDF con Gemini: {gemini_err}. Usando MODO SUPERVIVENCIA...")
                                         local_text = DirectScraperService.extract_text_from_pdf(pdf_bytes)
-                                        from app.services.caitlyn_vision_service import CaitlynVisionService
+                                        from app.services.ai.caitlyn_vision_service import CaitlynVisionService
                                         local_items = CaitlynVisionService._extract_products_from_text(local_text)
                                         if local_items:
                                             market_data = {item['nombre']: item['precioUnitario'] for item in local_items}

@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Header, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Any
-from app.services.agent_service import AgentService
-from app.services.invoice_service import InvoiceService
-from app.services.business_service import BusinessService
-from app.services.caitlyn_vision_service import CaitlynVisionService
-from app.services.shopping_service import ShoppingService
-from app.services.ventas_notebook_service import VentasNotebookService
-from app.services.market_service import MarketService
-from app.services.logistics_service import LogisticsService
+from app.services.ai.agent_service import AgentService
+from app.services.kitchy.invoice_service import InvoiceService
+from app.services.kitchy.business_service import BusinessService
+from app.services.ai.caitlyn_vision_service import CaitlynVisionService
+from app.services.kitchy.shopping_service import ShoppingService
+from app.services.kitchy.ventas_notebook_service import VentasNotebookService
+from app.services.kitchy.market_service import MarketService
+from app.services.logistics.logistics_service import LogisticsService
+from app.services.ai.scraper_ai_service import ScraperAIService
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -30,6 +31,9 @@ class LogisticsRequest(BaseModel):
     origin: str
     destination: str
     arrival_date: Optional[str] = None
+
+class DocumentParseRequest(BaseModel):
+    imagen: str # base64 del documento
 
 class InvoiceResponse(BaseModel):
     success: bool
@@ -75,6 +79,14 @@ async def get_logistics_itineraries(request: LogisticsRequest):
     """
     result = await LogisticsService.get_itineraries(request.origin, request.destination, request.arrival_date)
     return JSONResponse(content=result)
+
+@router.post("/logistics/parse-doc")
+async def parse_logistics_doc(request: DocumentParseRequest):
+    """
+    Lee un documento logístico (PDF o Imagen) para auto-completar Origen y Destino.
+    """
+    result = await ScraperAIService.parse_logistics_document(request.imagen)
+    return JSONResponse(content={"success": True, "data": result})
 
 # --- Endpoints de Vision y Facturación ---
 

@@ -10,7 +10,7 @@ import re
 from google import genai
 from google.genai import types
 from typing import Optional
-from app.services.caitlyn_vision_service import CaitlynVisionService
+from app.services.ai.caitlyn_vision_service import CaitlynVisionService
 from app.config import GEMINI_MODELS
 
 

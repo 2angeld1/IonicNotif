@@ -3,7 +3,7 @@ import json
 import pickle
 import re
 from typing import Optional, List, Dict, Any
-from app.services.hive_service import HiveService
+from app.services.ai.hive_service import HiveService
 
 class AgentService:
     # Rutas de modelos y configuración

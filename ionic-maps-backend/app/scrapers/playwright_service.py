@@ -3,10 +3,10 @@ import os
 import re
 from playwright.async_api import async_playwright
 from app.config import get_settings
-from app.services.scraper_ai_service import ScraperAIService
+from app.services.ai.scraper_ai_service import ScraperAIService
 from app.scrapers.som_utils import SOM_JS
 from app.scrapers.port_utils import extraer_busqueda, detectar_sitio, sitio_soporta_locode
-from app.services.socket_service import socket_manager
+from app.services.core.socket_service import socket_manager
 from app.database import get_database
 
 settings = get_settings()

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from typing import List
 from app.models.schemas import FavoritePlace, FavoritePlaceCreate
-from app.services.favorite_service import FavoriteService
+from app.services.core.favorite_service import FavoriteService
 
 router = APIRouter(
     prefix="/favorites",

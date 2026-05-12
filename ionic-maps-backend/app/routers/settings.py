@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.models.schemas import UserSettings
-from app.services.settings_service import SettingsService
+from app.services.core.settings_service import SettingsService
 
 router = APIRouter(
     prefix="/settings",

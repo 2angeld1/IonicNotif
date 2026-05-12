@@ -1,5 +1,5 @@
 
-from app.services.web_search_service import WebSearchService
+from app.services.core.web_search_service import WebSearchService
 import json
 
 # 🎯 Aquí puedes cambiar lo que quieres que Caitlyn busque
