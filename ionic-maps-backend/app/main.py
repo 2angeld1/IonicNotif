@@ -9,7 +9,7 @@ load_dotenv()
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.services.ai.ml_service import MLService
-from app.routers import routes, incidents, trips, weather, favorites, settings, convoy, agent
+from app.routers import routes, incidents, trips, weather, favorites, settings, convoy, agent, translator
 from app.config import get_settings
 
 app_settings = get_settings()
@@ -67,6 +67,7 @@ app.include_router(favorites.router)
 app.include_router(settings.router)
 app.include_router(convoy.router)
 app.include_router(agent.router)
+app.include_router(translator.router)
 
 @app.websocket("/ws/caitlyn")
 async def websocket_endpoint(websocket: WebSocket):
