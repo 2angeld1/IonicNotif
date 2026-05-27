@@ -1,4 +1,5 @@
 import os
+import logging
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ from app.services.translator.verso_cache import VersoCache
 from app.config import get_settings
 
 router = APIRouter(prefix="/api/translator", tags=["translator"])
+
+logger = logging.getLogger("verso")
 
 translator = HybridTranslator()
 github_reader = GitHubRepoReader(token=get_settings().github_token or None)
@@ -53,6 +56,9 @@ class TranslateResponse(BaseModel):
 async def translate_code(req: TranslateRequest):
     if not req.source.strip():
         raise HTTPException(400, "Código fuente vacío")
+
+    logger.info("POST /translate: lang=%s target=%s lines=%d",
+                req.source_lang or "auto", req.target_lang, req.source.count("\n") + 1)
 
     source_lang = req.source_lang
     if not source_lang:
@@ -248,6 +254,7 @@ async def detect_language(body: dict):
     try:
         rust_core_url = os.getenv("RUST_CORE_URL", "http://localhost:8002")
         async with httpx.AsyncClient(timeout=10.0) as client:
+            logger.info("POST /detect -> rust core")
             resp = await client.post(f"{rust_core_url}/detect", json={"source": code})
             if resp.is_success:
                 data = resp.json()
