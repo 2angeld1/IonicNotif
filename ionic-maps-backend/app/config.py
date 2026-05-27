@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     muelle_gemini_api_key: str = Field("", validation_alias="MUELLE_GEMINI_API_KEY")
     cohere_api_key: str = Field("", validation_alias="COHERE_API_KEY")
     
+    # GitHub
+    github_token: str = Field("", validation_alias="GITHUB_TOKEN")
+
     # Scrapers Credentials
     searates_email: str = Field("", validation_alias="SEARATES_EMAIL")
     searates_password: str = Field("", validation_alias="SEARATES_PASSWORD")

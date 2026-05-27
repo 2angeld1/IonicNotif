@@ -66,6 +66,9 @@ class MLService:
         """Cargar modelo guardado desde MongoDB"""
         try:
             db = get_database()
+            if db is None:
+                raise Exception("Base de datos no disponible (offline)")
+                
             model_doc = await db.models.find_one({"name": "route_predictor"})
             
             if model_doc:

@@ -43,5 +43,8 @@ def get_database(name: Optional[str] = None):
     Obtener instancia de una base de datos específica.
     Si no se pasa nombre, usa la de 'ionic_maps' por defecto (congelado por compatibilidad).
     """
+    if db.client is None:
+        return None
+        
     db_name = name if name else settings.database_name
     return db.client[db_name]
