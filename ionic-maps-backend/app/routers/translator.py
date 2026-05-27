@@ -1,7 +1,8 @@
 import os
 import logging
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+import json
 from pydantic import BaseModel
 from typing import Optional
 from app.services.translator.verso_translator import HybridTranslator
@@ -268,3 +269,116 @@ async def detect_language(body: dict):
 @router.get("/cache/stats")
 async def cache_stats():
     return await VersoCache.stats()
+
+
+@router.websocket("/ws/translate")
+async def ws_translate(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("WS /ws/translate: client connected")
+
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            data = json.loads(raw)
+
+            source = data.get("source", "")
+            source_lang = data.get("source_lang", "")
+            target_lang = data.get("target_lang", "Python")
+            source_version = data.get("source_version", "")
+            target_version = data.get("target_version", "")
+
+            if not source.strip():
+                await websocket.send_json({"type": "error", "message": "Código fuente vacío"})
+                continue
+
+            # Step 1: Analyzing
+            await websocket.send_json({
+                "type": "status",
+                "step": 1,
+                "total_steps": 4,
+                "message": "Analizando código fuente...",
+                "phase": "analyzing",
+            })
+
+            # Auto-detect language if needed
+            if not source_lang:
+                try:
+                    detect_resp = await detect_language({"code": source})
+                    source_lang = detect_resp["language"]
+                    await websocket.send_json({
+                        "type": "status",
+                        "step": 1,
+                        "total_steps": 4,
+                        "message": f"Lenguaje detectado: {source_lang}",
+                        "phase": "analyzing",
+                        "detected_lang": source_lang,
+                    })
+                except Exception:
+                    await websocket.send_json({"type": "error", "message": "No se pudo detectar el lenguaje"})
+                    continue
+
+            lines_in = source.count("\n") + 1
+
+            # Step 2: Checking cache
+            await websocket.send_json({
+                "type": "status",
+                "step": 2,
+                "total_steps": 4,
+                "message": "Buscando en caché...",
+                "phase": "cache",
+            })
+
+            # Step 3: Translating
+            await websocket.send_json({
+                "type": "status",
+                "step": 3,
+                "total_steps": 4,
+                "message": f"Traduciendo {source_lang} → {target_lang}...",
+                "phase": "translating",
+            })
+
+            try:
+                result = await translator.translate(
+                    source=source,
+                    source_lang=source_lang,
+                    target_lang=target_lang or source_lang,
+                    source_version=source_version,
+                    target_version=target_version,
+                )
+            except Exception as e:
+                await websocket.send_json({"type": "error", "message": f"Error en traducción: {str(e)}"})
+                continue
+
+            lines_out = result["result"].count("\n") + 1
+
+            # Step 4: Completed
+            await websocket.send_json({
+                "type": "status",
+                "step": 4,
+                "total_steps": 4,
+                "message": "¡Traducción completada!",
+                "phase": "completed",
+            })
+
+            # Send final result
+            await websocket.send_json({
+                "type": "result",
+                "result": result["result"],
+                "source_lang": result["source_lang"],
+                "target_lang": result["target_lang"],
+                "source_version": result["source_version"],
+                "target_version": result["target_version"],
+                "method": result["method"],
+                "lines_input": lines_in,
+                "lines_output": lines_out,
+            })
+
+    except WebSocketDisconnect:
+        logger.info("WS /ws/translate: client disconnected")
+    except Exception as e:
+        logger.error("WS /ws/translate error: %s", e)
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+
