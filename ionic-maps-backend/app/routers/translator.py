@@ -215,6 +215,27 @@ async def supported_languages():
             "target_lang": "C++",
             "can_translate_to": ["Python", "Java", "C#", "Go", "Rust", "PHP", "JavaScript", "TypeScript", "COBOL"],
         },
+        "CSHARP": {
+            "label": "C#",
+            "source_versions": ["7.x", "8", "9", "10", "11", "12"],
+            "target_versions": ["10", "11", "12"],
+            "target_lang": "C#",
+            "can_translate_to": ["Python", "JavaScript", "Go", "Java", "Rust", "PHP", "TypeScript", "COBOL", "C++"],
+        },
+        "RUBY": {
+            "label": "Ruby",
+            "source_versions": ["2.7", "3.0", "3.1", "3.2", "3.3"],
+            "target_versions": ["3.0", "3.1", "3.2", "3.3"],
+            "target_lang": "Ruby",
+            "can_translate_to": ["Python", "JavaScript", "Go", "Java", "Rust", "PHP", "TypeScript", "COBOL", "C++"],
+        },
+        "KOTLIN": {
+            "label": "Kotlin",
+            "source_versions": ["1.6", "1.8", "2.0"],
+            "target_versions": ["1.8", "2.0"],
+            "target_lang": "Kotlin",
+            "can_translate_to": ["Java", "Python", "JavaScript", "Go", "TypeScript", "COBOL", "C++"],
+        },
     }
 
 
