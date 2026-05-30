@@ -46,8 +46,8 @@ class HybridTranslator:
 
         logger.info("cache MISS: %s -> %s", source_lang, target_lang)
 
-        # Same-language migration (rules-based, deterministic)
-        if source_lang_norm == target_lang_norm:
+        # Same-language migration (rules-based, deterministic) if versions are identical or none
+        if source_lang_norm == target_lang_norm and (not source_version or source_version == target_version):
             result = self._rules_translate(source, source_lang_norm)
             await VersoCache.store(source, source_lang, target_lang, target_version, result, "rules")
             logger.info("rules: %s -> %s (same-language)", source_lang, target_lang)
