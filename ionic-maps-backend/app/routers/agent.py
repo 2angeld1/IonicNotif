@@ -88,6 +88,18 @@ async def parse_logistics_doc(request: DocumentParseRequest):
     result = await ScraperAIService.parse_logistics_document(request.imagen)
     return JSONResponse(content={"success": True, "data": result})
 
+class EmergencyOCRRequest(BaseModel):
+    imagen: str  # base64 de la imagen (original o WebP comprimida)
+
+@router.post("/emergency-ocr")
+async def emergency_ocr(request: EmergencyOCRRequest):
+    """
+    Endpoint de emergencia para forzar el OCR local con EasyOCR/PyTorch de forma directa.
+    Utilizado por el Router de Rust en caso de caída masiva de Gemini.
+    """
+    result = await CaitlynVisionService.blind_scan_invoice(request.imagen)
+    return JSONResponse(content=result)
+
 # --- Endpoints de Vision y Facturación ---
 
 class AliasLearnRequest(BaseModel):
